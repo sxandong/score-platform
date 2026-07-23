@@ -58,16 +58,19 @@
         </template>
 
         <el-row :gutter="16" style="margin-bottom:20px">
-          <el-col :span="4"><el-statistic title="总分" :value="studentDetail.total" /></el-col>
-          <el-col :span="4"><el-statistic title="年级排名">
+          <el-col :span="3"><el-statistic title="总分" :value="studentDetail.total" /></el-col>
+          <el-col :span="3"><el-statistic title="班级排名">
+            <span style="color:#409EFF;font-weight:bold">{{ studentDetail.class_rank || '-' }}</span>
+          </el-statistic></el-col>
+          <el-col :span="3"><el-statistic title="年级排名">
             <span style="color:#409EFF;font-weight:bold">{{ studentDetail.grade_rank || '-' }}</span>
           </el-statistic></el-col>
-          <el-col :span="4"><el-statistic title="语数外" :value="studentDetail.yuwai" /></el-col>
-          <el-col :span="4"><el-statistic title="语数外排名">
+          <el-col :span="3"><el-statistic title="语数外" :value="studentDetail.yuwai" /></el-col>
+          <el-col :span="3"><el-statistic title="语数外排名">
             <span style="color:#E6A23C;font-weight:bold">{{ studentDetail.yuwai_rank || '-' }}</span>
           </el-statistic></el-col>
-          <el-col :span="4"><el-statistic title="7选3" :value="studentDetail.top3" /></el-col>
-          <el-col :span="4"><el-statistic title="7选3排名">
+          <el-col :span="3"><el-statistic title="7选3" :value="studentDetail.top3" /></el-col>
+          <el-col :span="3"><el-statistic title="7选3排名">
             <span style="color:#67C23A;font-weight:bold">{{ studentDetail.top3_rank || '-' }}</span>
           </el-statistic></el-col>
         </el-row>
@@ -172,6 +175,7 @@ async function loadStudentScores() {
     studentDetail.value = {
       name: '', student_no: '', class_name: '',
       total: exam.total, grade_rank: exam.grade_rank || '-',
+      class_rank: exam.class_rank || '-',
       yuwai: ywTotal, yuwai_rank: ywRank,
       top3: t3Total, top3_rank: t3Rank,
       subjects_list: subjList,

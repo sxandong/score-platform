@@ -96,6 +96,7 @@ async def student_trend(
                 "subjects": {},
                 "total": 0,
                 "grade_rank": s.grade_rank,
+                "class_rank": s.class_rank,
             }
         sn = s.subject.name if s.subject else str(s.subject_id)
         exam_data[eid]["subjects"][sn] = float(s.total_score)
