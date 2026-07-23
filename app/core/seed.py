@@ -103,9 +103,11 @@ async def seed_admin_user(db: AsyncSession) -> None:
 
 
 async def seed_subjects(db: AsyncSession) -> None:
-    # 迁移: 英语 → 外语
+    # 迁移: 英语 → 外语, 清理重复
     from sqlalchemy import text
-    await db.execute(text("UPDATE subjects SET name='外语' WHERE name='英语'"))
+    await db.execute(text(
+        "DELETE FROM subjects WHERE name='英语' AND EXISTS (SELECT 1 FROM subjects s2 WHERE s2.name='外语')"))
+    await db.execute(text("UPDATE subjects SET name='外语' WHERE name='英语' AND NOT EXISTS (SELECT 1 FROM subjects s2 WHERE s2.name='外语')"))
     for i, name in enumerate(DEFAULT_SUBJECTS):
         result = await db.execute(select(Subject).where(Subject.name == name))
         if result.scalar_one_or_none() is None:
