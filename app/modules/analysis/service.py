@@ -83,6 +83,7 @@ async def student_trend(
     )
     scores = list(result.scalars().all())
 
+    YWS = {"语文", "数学", "外语"}
     # 按考试分组
     exam_data: dict[int, dict] = {}
     for s in scores:
@@ -94,13 +95,25 @@ async def student_trend(
                 "exam_name": e.name if e else "",
                 "exam_date": e.exam_date.isoformat() if e and e.exam_date else None,
                 "subjects": {},
-                "total": 0,
+                "yws": {}, "top3": {},
+                "total": 0, "yws_total": 0, "top3_total": 0,
                 "grade_rank": s.grade_rank,
                 "class_rank": s.class_rank,
             }
         sn = s.subject.name if s.subject else str(s.subject_id)
-        exam_data[eid]["subjects"][sn] = float(s.total_score)
-        exam_data[eid]["total"] += float(s.total_score)
+        score_val = float(s.total_score)
+        exam_data[eid]["subjects"][sn] = score_val
+        exam_data[eid]["total"] += score_val
+        if sn in YWS:
+            exam_data[eid]["yws"][sn] = score_val
+            exam_data[eid]["yws_total"] += score_val
+
+    # 计算每个考试的7选3
+    for eid, data in exam_data.items():
+        other = {k: v for k, v in data["subjects"].items() if k not in YWS}
+        top3_items = sorted(other.items(), key=lambda x: x[1], reverse=True)[:3]
+        data["top3"] = dict(top3_items)
+        data["top3_total"] = sum(v for _, v in top3_items)
 
     return list(exam_data.values())
 

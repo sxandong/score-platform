@@ -59,6 +59,7 @@ async def get_class_scores(db: AsyncSession, exam_id: int, class_id: int) -> lis
             and_(Score.exam_id == exam_id, Score.student_id.in_(students.keys())))
         .order_by(Score.student_id))
     scores = list(result.scalars().all())
+    YWS = {"语文", "数学", "外语"}
     student_scores: dict[int, dict] = {}
     for s in scores:
         if s.student_id not in student_scores:
@@ -66,11 +67,25 @@ async def get_class_scores(db: AsyncSession, exam_id: int, class_id: int) -> lis
             student_scores[s.student_id] = {
                 "student_id": s.student_id, "student_name": st.name if st else "",
                 "student_no": st.student_no if st else "", "subjects": {},
-                "total": 0, "class_rank": s.class_rank, "grade_rank": s.grade_rank,
+                "yws": {}, "top3": {}, "total": 0,
+                "yws_total": 0, "top3_total": 0,
+                "class_rank": s.class_rank, "grade_rank": s.grade_rank,
             }
         subj_name = s.subject.name if s.subject else str(s.subject_id)
-        student_scores[s.student_id]["subjects"][subj_name] = float(s.total_score)
-        student_scores[s.student_id]["total"] += float(s.total_score)
+        score_val = float(s.total_score)
+        student_scores[s.student_id]["subjects"][subj_name] = score_val
+        student_scores[s.student_id]["total"] += score_val
+        if subj_name in YWS:
+            student_scores[s.student_id]["yws"][subj_name] = score_val
+            student_scores[s.student_id]["yws_total"] += score_val
+
+    # 计算每个学生的7选3
+    for sid, data in student_scores.items():
+        other = {k: v for k, v in data["subjects"].items() if k not in YWS}
+        top3_items = sorted(other.items(), key=lambda x: x[1], reverse=True)[:3]
+        data["top3"] = dict(top3_items)
+        data["top3_total"] = sum(v for _, v in top3_items)
+
     return list(student_scores.values())
 
 

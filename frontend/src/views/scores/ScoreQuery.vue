@@ -39,9 +39,14 @@
     <el-table :data="scoreData" border stripe v-if="mode==='class' && scoreData.length" v-loading="loading">
       <el-table-column prop="student_no" label="学籍号" width="120" />
       <el-table-column prop="student_name" label="姓名" width="100" />
-      <el-table-column v-for="(v,k) in scoreCols" :key="k" :label="k" width="100">
-        <template #default="{ row }">{{ row.subjects[k] }}</template>
-      </el-table-column>
+      <el-table-column label="语文" width="70"><template #default="{row}">{{ row.yws?.语文 }}</template></el-table-column>
+      <el-table-column label="数学" width="70"><template #default="{row}">{{ row.yws?.数学 }}</template></el-table-column>
+      <el-table-column label="外语" width="70"><template #default="{row}">{{ row.yws?.外语 }}</template></el-table-column>
+      <el-table-column label="语数外" width="80"><template #default="{row}">{{ row.yws_total }}</template></el-table-column>
+      <el-table-column label="选考1"><template #default="{row}">{{ top3Col(row,0) }}</template></el-table-column>
+      <el-table-column label="选考2"><template #default="{row}">{{ top3Col(row,1) }}</template></el-table-column>
+      <el-table-column label="选考3"><template #default="{row}">{{ top3Col(row,2) }}</template></el-table-column>
+      <el-table-column label="7选3" width="80"><template #default="{row}">{{ row.top3_total }}</template></el-table-column>
       <el-table-column prop="total" label="总分" width="80" />
       <el-table-column prop="class_rank" label="班排" width="70" />
       <el-table-column prop="grade_rank" label="级排" width="70" />
@@ -67,7 +72,15 @@
           <el-col :span="4"><el-statistic title="7选3排名"><span style="color:#67C23A;font-size:20px;font-weight:bold">{{ studentDetail.top3_rank }}</span></el-statistic></el-col>
         </el-row>
 
-        <el-table :data="studentDetail.subjects_list" border stripe size="small">
+        <h4 style="margin:12px 0 8px">语数外</h4>
+        <el-table :data="ywsList" border stripe size="small">
+          <el-table-column prop="name" label="科目" width="100" />
+          <el-table-column prop="score" label="分数" width="80" />
+          <el-table-column prop="full" label="满分" width="80" />
+        </el-table>
+
+        <h4 style="margin:12px 0 8px">7选3 (最优3科)</h4>
+        <el-table :data="top3List" border stripe size="small">
           <el-table-column prop="name" label="科目" width="100" />
           <el-table-column prop="score" label="分数" width="80" />
           <el-table-column prop="full" label="满分" width="80" />
@@ -95,6 +108,20 @@ const loading = ref(false)
 const rankCache = ref<Record<string, any[]>>({})  // 缓存同一考试的排名数据
 
 const scoreCols = computed(() => scoreData.value[0]?.subjects || {})
+const ywsList = computed(() => {
+  if (!studentDetail.value?.yws) return []
+  return Object.entries(studentDetail.value.yws).map(([k,v]) => ({name:k, score:v, full:['语文','数学','外语'].includes(k)?150:100}))
+})
+const top3List = computed(() => {
+  if (!studentDetail.value?.top3) return []
+  return Object.entries(studentDetail.value.top3).map(([k,v]) => ({name:k, score:v, full:100}))
+})
+function top3Col(row: any, idx: number): string {
+  const items = row.top3 ? Object.entries(row.top3) : []
+  if (idx >= items.length) return ''
+  const [k, v] = items[idx]
+  return `${k}: ${v}`
+}
 
 onMounted(async () => {
   try { const r = await api.get('/exams'); exams.value = r.data } catch {}
@@ -160,15 +187,7 @@ async function loadStudentScores() {
     const ywMatch = ywArr.find((x: any) => Number(x.student_id) === numSid)
     const t3Match = t3Arr.find((x: any) => Number(x.student_id) === numSid)
 
-    // 4. 科目列表
-    const subjNames = ['语文','数学','外语','物理','化学','生物','政治','历史','地理','技术']
-    const subjList = subjNames.map(sn => ({
-      name: sn,
-      score: exam.subjects[sn] ?? '-',
-      full: ['语文','数学','外语'].includes(sn) ? 150 : 100,
-    }))
-
-    // 5. 学生信息
+    // 4. 学生信息
     const st = studentResults.value.find((s: any) => Number(s.id) === numSid) || {}
 
     studentDetail.value = {
@@ -176,11 +195,12 @@ async function loadStudentScores() {
       total: Number(exam.total) || 0,
       grade_rank: exam.grade_rank ?? '-',
       class_rank: exam.class_rank ?? '-',
-      yuwai: ywMatch ? Number(ywMatch.total_score) : 0,
+      yuwai: ywMatch ? Number(ywMatch.total_score) : (Number(exam.yws_total) || 0),
       yuwai_rank: ywMatch ? ywMatch.rank : '-',
-      top3: t3Match ? Number(t3Match.total_score) : 0,
+      top3: t3Match ? Number(t3Match.total_score) : (Number(exam.top3_total) || 0),
       top3_rank: t3Match ? t3Match.rank : '-',
-      subjects_list: subjList,
+      yws: exam.yws || {},
+      top3: exam.top3 || {},
     }
   } catch (e: any) {
     console.error('loadStudentScores:', e)
