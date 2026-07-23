@@ -43,23 +43,29 @@
 
       <!-- ========== 班级 ========== -->
       <el-tab-pane label="班级" name="classes">
-        <div style="margin-bottom:16px">
+        <div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <el-select v-model="classGradeFilter" placeholder="按年级筛选" clearable @change="loadClasses" style="width:150px">
+            <el-option v-for="g in grades" :key="g.id" :label="g.name" :value="g.id" />
+          </el-select>
           <el-button type="primary" @click="openClassDialog()">单个新增</el-button>
           <el-button type="success" @click="showAutoGen=true">按数量生成</el-button>
           <el-button type="warning" @click="showBatchDialog=true">批量输入</el-button>
-          <el-upload :show-file-list="false" :before-upload="handleClassExcel" accept=".xlsx,.xls" style="display:inline-block;margin-left:8px">
+          <el-upload :show-file-list="false" :before-upload="handleClassExcel" accept=".xlsx,.xls" style="display:inline-block">
             <el-button type="info">Excel导入</el-button>
           </el-upload>
-          <el-button type="danger" :disabled="!cSelected.length" @click="batchDeleteClasses" style="margin-left:8px">
+          <el-button type="danger" :disabled="!cSelected.length" @click="batchDeleteClasses">
             批量删除 ({{ cSelected.length }})
           </el-button>
+          <el-button text @click="selectAllClasses">{{ cSelected.length === filteredClasses.length && filteredClasses.length > 0 ? '取消全选' : '全选当前' }}</el-button>
         </div>
 
-        <el-table :data="classes" border stripe v-loading="cLoading" @selection-change="(v:any)=>cSelected=v">
+        <el-table ref="classTableRef" :data="classes" border stripe v-loading="cLoading" @selection-change="(v:any)=>cSelected=v">
           <el-table-column type="selection" width="40" />
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column prop="name" label="班级名称" />
-          <el-table-column prop="grade_id" label="年级ID" width="80" />
+          <el-table-column label="年级" width="100">
+            <template #default="{ row }">{{ gradeMap[row.grade_id] || row.grade_id }}</template>
+          </el-table-column>
           <el-table-column label="操作" width="180">
             <template #default="{ row }">
               <el-button size="small" @click="openClassDialog(row)">编辑</el-button>
@@ -148,8 +154,10 @@ const gradeForm = reactive({ name: '', stage: 'senior' })
 
 async function loadGrades() {
   gLoading.value = true
-  try { const r = await api.get('/grades'); grades.value = r.data } catch {}
-  gLoading.value = false
+  try {
+    const r = await api.get('/grades'); grades.value = r.data
+    r.data.forEach((g: any) => { gradeMap.value[g.id] = g.name })
+  } catch {} finally { gLoading.value = false }
 }
 function openGradeDialog(row?: any) {
   editingGrade.value = row || null
@@ -182,6 +190,11 @@ async function batchDeleteGrades() {
 // ---- 班级 ----
 const classDialog = ref(false); const editingClass = ref<any>(null)
 const classForm = reactive({ name: '', grade_id: 1 })
+const classGradeFilter = ref<number | null>(null)
+const gradeMap = ref<Record<number, string>>({})
+const classTableRef = ref<any>(null)
+const filteredClasses = ref<any[]>([])
+
 const showBatchDialog = ref(false); const batchSaving = ref(false)
 const batchForm = reactive({ grade_id: 1, names: '' })
 const showAutoGen = ref(false)
@@ -189,8 +202,20 @@ const autoForm = reactive({ grade_id: 1, count: 10 })
 
 async function loadClasses() {
   cLoading.value = true
-  try { const r = await api.get('/classes'); classes.value = r.data } catch {}
-  cLoading.value = false
+  try {
+    const params: any = {}
+    if (classGradeFilter.value) params.grade_id = classGradeFilter.value
+    const r = await api.get('/classes', { params })
+    classes.value = r.data
+    filteredClasses.value = r.data
+  } catch {} finally { cLoading.value = false }
+}
+function selectAllClasses() {
+  if (cSelected.value.length === filteredClasses.value.length) {
+    classTableRef.value?.clearSelection()
+  } else {
+    filteredClasses.value.forEach((c: any) => classTableRef.value?.toggleRowSelection(c, true))
+  }
 }
 function openClassDialog(row?: any) {
   editingClass.value = row || null

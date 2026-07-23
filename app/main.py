@@ -94,9 +94,6 @@ app.include_router(analysis_router)
 from app.modules.reports.router import router as reports_router
 app.include_router(reports_router)
 
-from app.modules.exams.classes_router import router as classes_router
-app.include_router(classes_router)
-
 from app.modules.base_data_router import router as base_data_router
 app.include_router(base_data_router)
 

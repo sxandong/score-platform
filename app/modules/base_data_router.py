@@ -165,9 +165,15 @@ async def list_classes(
 ):
     q = select(Class)
     if grade_id: q = q.where(Class.grade_id == grade_id)
-    q = q.order_by(Class.grade_id, Class.name)
     result = await db.execute(q)
-    classes = result.scalars().all()
+    classes = list(result.scalars().all())
+    # 按年级→班号数字排序(避免"10班"排在"2班"前面)
+    import re
+    def _sort_key(c):
+        m = re.search(r'\((\d+)\)', c.name)
+        num = int(m.group(1)) if m else 0
+        return (c.grade_id, num)
+    classes.sort(key=_sort_key)
     return success_response(data=[{
         "id": c.id, "name": c.name, "grade_id": c.grade_id,
         "head_teacher_id": c.head_teacher_id,
