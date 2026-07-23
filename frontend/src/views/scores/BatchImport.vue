@@ -6,45 +6,72 @@
         <el-option v-for="e in exams" :key="e.id" :label="e.name" :value="e.id" /></el-select>
       </el-form-item>
     </el-form>
-    <el-upload drag :auto-upload="false" :on-change="handleFile" accept=".xlsx,.xls" :limit="1">
+    <el-alert v-if="examId && existingCount > 0" type="warning" :closable="false" show-icon style="margin-bottom:12px"
+      :title="`该考试已有 ${existingCount} 条成绩，重新导入将更新原有数据。`" />
+
+    <el-upload drag :show-file-list="false" :http-request="doImport" accept=".xlsx,.xls" :disabled="!examId">
       <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
-      <div>拖拽或点击上传Excel文件</div>
+      <div>点击或拖拽上传Excel文件</div>
+      <template #tip><div style="font-size:12px;color:#909399;margin-top:8px">
+        列名: 学籍号, 姓名, 班级, 语文, 数学, 外语, 政治, 历史, 地理, 物理, 化学, 生物, 技术
+      </div></template>
     </el-upload>
-    <el-table v-if="preview.length" :data="preview" border stripe style="margin-top:16px" max-height="400">
-      <el-table-column prop="row" label="行号" width="80" />
-      <el-table-column prop="status" label="状态" width="80">
-        <template #default="{ row }"><el-tag :type="row.status==='ok'?'success':'danger'">{{ row.status }}</el-tag></template>
-      </el-table-column>
-      <el-table-column prop="student_no" label="学籍号" width="120" />
-      <el-table-column prop="reason" label="备注" />
-    </el-table>
-    <el-button v-if="preview.length" type="primary" @click="confirmImport" :loading="importing" style="margin-top:16px">确认导入</el-button>
+
+    <el-result v-if="importResult" :icon="importResult.errors?.length ? 'warning' : 'success'"
+      :title="importResult.message" style="margin-top:16px">
+      <template #sub-title>
+        共 {{ importResult.total_rows }} 行，新增 {{ importResult.created_students }} 学生，{{ importResult.created_scores }} 条成绩
+        <div v-if="importResult.errors?.length" style="margin-top:8px;text-align:left">
+          <el-tag v-for="(e,i) in importResult.errors" :key="i" type="danger" size="small" style="margin:2px">
+            行{{ e.row }}: {{ e.reason }}
+          </el-tag>
+        </div>
+      </template>
+    </el-result>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import api from '@/api'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const exams = ref([]); const examId = ref<number | null>(null)
-const preview = ref<any[]>([]); const importing = ref(false)
-let fileData: File | null = null
+const existingCount = ref(0); const importResult = ref<any>(null)
 
-onMounted(async () => { try { const r = await api.get('/exams'); exams.value = r.data } catch {} })
+onMounted(async () => {
+  try { const r = await api.get('/exams'); exams.value = r.data } catch {}
+})
 
-async function handleFile(file: any) {
-  fileData = file.raw
+watch(examId, async (val) => {
+  importResult.value = null
+  if (!val) { existingCount.value = 0; return }
+  try {
+    const r = await api.get(`/exams/${val}/stats`)
+    existingCount.value = r.data.scores || 0
+  } catch { existingCount.value = 0 }
+})
+
+async function doImport(options: any) {
   if (!examId.value) { ElMessage.warning('请先选择考试'); return }
-  const form = new FormData(); form.append('file', file.raw); form.append('exam_id', String(examId.value))
-  try { const r = await api.post('/scores/batch', form, { headers: { 'Content-Type': 'multipart/form-data' } }); preview.value = r.data.preview }
-  catch (e: any) { ElMessage.error(e.message) }
-}
 
-async function confirmImport() {
-  importing.value = true
-  try { ElMessage.success('导入完成'); preview.value = [] }
-  catch (e: any) { ElMessage.error(e.message) }
-  importing.value = false
+  // 已有成绩时确认
+  if (existingCount.value > 0) {
+    try {
+      await ElMessageBox.confirm(
+        `该考试已有 ${existingCount.value} 条成绩，重新导入将覆盖更新原有数据。确定导入？`,
+        '确认导入', { type: 'warning', confirmButtonText: '确定导入', cancelButtonText: '取消' }
+      )
+    } catch { return }
+  }
+
+  const fd = new FormData(); fd.append('file', options.file); fd.append('exam_id', String(examId.value))
+  try {
+    const r = await api.post('/scores/batch', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    importResult.value = r.data
+    ElMessage.success(r.message)
+    // 刷新计数
+    existingCount.value = r.data.created_scores
+  } catch (e: any) { ElMessage.error(e.message) }
 }
 </script>

@@ -19,10 +19,10 @@
 
     <!-- 按学生 -->
     <el-form :inline="true" v-if="mode==='student'">
-      <el-form-item label="考试"><el-select v-model="examId2" placeholder="必选" style="width:250px">
+      <el-form-item label="考试"><el-select v-model="examId2" placeholder="必选" style="width:250px" @change="onExamChange">
         <el-option v-for="e in exams" :key="e.id" :label="e.name" :value="e.id" /></el-select>
       </el-form-item>
-      <el-form-item label="学籍号/姓名"><el-input v-model="studentKeyword" placeholder="搜索" style="width:250px"
+      <el-form-item label="学籍号/姓名"><el-input v-model="studentKeyword" placeholder="搜索" style="width:220px"
         clearable @keyup.enter="searchStudent" /></el-form-item>
       <el-form-item><el-button type="primary" @click="searchStudent" :loading="searching">搜索</el-button></el-form-item>
     </el-form>
@@ -42,46 +42,34 @@
       <el-table-column v-for="(v,k) in scoreCols" :key="k" :label="k" width="100">
         <template #default="{ row }">{{ row.subjects[k] }}</template>
       </el-table-column>
-      <el-table-column prop="total" label="总分" width="100" />
-      <el-table-column prop="class_rank" label="班排" width="80" />
-      <el-table-column prop="grade_rank" label="级排" width="80" />
+      <el-table-column prop="total" label="总分" width="80" />
+      <el-table-column prop="class_rank" label="班排" width="70" />
+      <el-table-column prop="grade_rank" label="级排" width="70" />
     </el-table>
 
-    <!-- 学生个人成绩卡片 -->
-    <div v-if="mode==='student' && studentDetail" v-loading="loading" style="margin-top:16px">
-      <el-card>
+    <!-- 学生成绩卡片 -->
+    <div v-if="mode==='student' && studentDetail" v-loading="loading">
+      <el-card style="margin-top:16px">
         <template #header>
           <span style="font-size:18px;font-weight:bold">
-            {{ studentDetail.name }} ({{ studentDetail.student_no }}) — {{ studentDetail.class_name }}
-            — {{ examName2 }}
+            {{ studentDetail.name }} ({{ studentDetail.student_no }})
+            — {{ studentDetail.class_name }} — {{ examName2 }}
           </span>
         </template>
 
-        <el-row :gutter="16" style="margin-bottom:20px">
-          <el-col :span="3"><el-statistic title="总分" :value="studentDetail.total" /></el-col>
-          <el-col :span="3"><el-statistic title="班级排名">
-            <span style="color:#409EFF;font-weight:bold">{{ studentDetail.class_rank || '-' }}</span>
-          </el-statistic></el-col>
-          <el-col :span="3"><el-statistic title="年级排名">
-            <span style="color:#409EFF;font-weight:bold">{{ studentDetail.grade_rank || '-' }}</span>
-          </el-statistic></el-col>
-          <el-col :span="3"><el-statistic title="语数外" :value="studentDetail.yuwai" /></el-col>
-          <el-col :span="3"><el-statistic title="语数外排名">
-            <span style="color:#E6A23C;font-weight:bold">{{ studentDetail.yuwai_rank || '-' }}</span>
-          </el-statistic></el-col>
-          <el-col :span="3"><el-statistic title="7选3" :value="studentDetail.top3" /></el-col>
-          <el-col :span="3"><el-statistic title="7选3排名">
-            <span style="color:#67C23A;font-weight:bold">{{ studentDetail.top3_rank || '-' }}</span>
-          </el-statistic></el-col>
+        <el-row :gutter="12" style="margin-bottom:16px">
+          <el-col :span="4"><el-statistic title="总分" :value="studentDetail.total" /></el-col>
+          <el-col :span="4"><el-statistic title="班级排名"><span style="color:#409EFF;font-size:20px;font-weight:bold">{{ studentDetail.class_rank }}</span></el-statistic></el-col>
+          <el-col :span="4"><el-statistic title="年级排名"><span style="color:#409EFF;font-size:20px;font-weight:bold">{{ studentDetail.grade_rank }}</span></el-statistic></el-col>
+          <el-col :span="4"><el-statistic title="语数外"><span style="font-size:20px">{{ studentDetail.yuwai }}</span></el-statistic></el-col>
+          <el-col :span="4"><el-statistic title="语数外排名"><span style="color:#E6A23C;font-size:20px;font-weight:bold">{{ studentDetail.yuwai_rank }}</span></el-statistic></el-col>
+          <el-col :span="4"><el-statistic title="7选3"><span style="font-size:20px">{{ studentDetail.top3 }}</span></el-statistic></el-col>
+          <el-col :span="4"><el-statistic title="7选3排名"><span style="color:#67C23A;font-size:20px;font-weight:bold">{{ studentDetail.top3_rank }}</span></el-statistic></el-col>
         </el-row>
 
         <el-table :data="studentDetail.subjects_list" border stripe size="small">
           <el-table-column prop="name" label="科目" width="100" />
-          <el-table-column prop="score" label="分数" width="80">
-            <template #default="{ row }">
-              <span :style="{color: row.score === 0 ? '#ccc' : ''}">{{ row.score || '-' }}</span>
-            </template>
-          </el-table-column>
+          <el-table-column prop="score" label="分数" width="80" />
           <el-table-column prop="full" label="满分" width="80" />
         </el-table>
       </el-card>
@@ -104,6 +92,7 @@ const studentKeyword = ref(''); const searching = ref(false)
 const studentResults = ref<any[]>([]); const selectedStudentId = ref<number | null>(null)
 const scoreData = ref<any[]>([]); const studentDetail = ref<any>(null)
 const loading = ref(false)
+const rankCache = ref<Record<string, any[]>>({})  // 缓存同一考试的排名数据
 
 const scoreCols = computed(() => scoreData.value[0]?.subjects || {})
 
@@ -111,6 +100,9 @@ onMounted(async () => {
   try { const r = await api.get('/exams'); exams.value = r.data } catch {}
   try { const r = await api.get('/classes'); classes.value = r.data } catch {}
 })
+
+function onExamChange() { studentDetail.value = null; studentResults.value = []; rankCache.value = {} }
+function fmt(v: any): string { return (v === null || v === undefined || v === '') ? '-' : String(v) }
 
 async function loadClassScores() {
   if (!examId.value || !classId.value) return
@@ -129,7 +121,7 @@ async function searchStudent() {
     studentResults.value = r.data
     if (r.data.length === 1) {
       selectedStudentId.value = r.data[0].id
-      await loadStudentScores()
+      loadStudentScores()
     }
   } catch {} finally { searching.value = false }
 }
@@ -140,53 +132,61 @@ async function loadStudentScores() {
   const sid = selectedStudentId.value; const eid = examId2.value
 
   try {
-    // 考试名
     const ex = exams.value.find((e: any) => e.id === eid)
-    examName2.value = ex?.name || ''
+    examName2.value = ex?.name || String(eid)
 
-    // 学生基本信息和成绩
+    // 1. 获取学生该次考试成绩
     const r1 = await api.get('/analysis/student-trend', { params: { student_id: sid } })
     const exam = r1.data.find((x: any) => x.exam_id === eid)
     if (!exam) { loading.value = false; return }
 
-    // 语数外排名
-    let ywRank: any = '-', ywTotal = 0
-    try {
-      const r3 = await api.get('/analysis/ranks', { params: { exam_id: eid, rank_type: 'yuwai', per_page: 999 } })
-      const yw = r3.data.find((x: any) => x.student_id === sid)
-      if (yw) { ywRank = yw.rank; ywTotal = yw.total_score }
-    } catch {}
-
-    // 7选3排名
-    let t3Rank: any = '-', t3Total = 0
-    try {
-      const r4 = await api.get('/analysis/ranks', { params: { exam_id: eid, rank_type: 'top3', per_page: 999 } })
-      const t3 = r4.data.find((x: any) => x.student_id === sid)
-      if (t3) { t3Rank = t3.rank; t3Total = t3.total_score }
-    } catch {}
-
-    // 科目列表
-    const subjList: any[] = []
-    for (const [sn, sv] of Object.entries(exam.subjects)) {
-      const fullScore = ['语文','数学','外语'].includes(sn as string) ? 150 : 100
-      subjList.push({ name: sn, score: sv, full: fullScore })
+    // 2. 加载排名 (缓存避免重复请求)
+    if (!rankCache.value[`yw_${eid}`]) {
+      const [rw, rt] = await Promise.all([
+        api.get('/analysis/ranks', { params: { exam_id: eid, rank_type: 'yuwai', per_page: 2000 } }),
+        api.get('/analysis/ranks', { params: { exam_id: eid, rank_type: 'top3', per_page: 2000 } }),
+      ])
+      rankCache.value[`yw_${eid}`] = rw.data
+      rankCache.value[`t3_${eid}`] = rt.data
     }
+
+    // 3. 查找该学生的语数外和7选3排名
+    const ywArr = rankCache.value[`yw_${eid}`]
+    const t3Arr = rankCache.value[`t3_${eid}`]
+    const ywMatch = ywArr.find((x: any) => Number(x.student_id) === Number(sid))
+    const t3Match = t3Arr.find((x: any) => Number(x.student_id) === Number(sid))
+
+    const ywTotal = ywMatch ? Number(ywMatch.total_score) : 0
+    const ywRank = ywMatch ? ywMatch.rank : '-'
+    const t3Total = t3Match ? Number(t3Match.total_score) : 0
+    const t3Rank = t3Match ? t3Match.rank : '-'
+
+    // 4. 科目列表
+    const subjList: any[] = []
+    const subjNames = ['语文','数学','外语','物理','化学','生物','政治','历史','地理','技术']
+    for (const sn of subjNames) {
+      subjList.push({
+        name: sn,
+        score: exam.subjects[sn] ?? '-',
+        full: ['语文','数学','外语'].includes(sn) ? 150 : 100,
+      })
+    }
+
+    // 5. 获取学生信息
+    const st = studentResults.value.find((s: any) => s.id === sid) || {}
 
     studentDetail.value = {
-      name: '', student_no: '', class_name: '',
-      total: exam.total, grade_rank: exam.grade_rank || '-',
-      class_rank: exam.class_rank || '-',
-      yuwai: ywTotal, yuwai_rank: ywRank,
-      top3: t3Total, top3_rank: t3Rank,
+      name: st.name || '', student_no: st.student_no || '', class_name: st.class_name || '',
+      total: exam.total || 0,
+      grade_rank: fmt(exam.grade_rank),
+      class_rank: fmt(exam.class_rank),
+      yuwai: ywTotal || 0,
+      yuwai_rank: ywRank,
+      top3: t3Total || 0,
+      top3_rank: t3Rank,
       subjects_list: subjList,
     }
-    // 补学生信息
-    const st = studentResults.value.find((s: any) => s.id === sid)
-    if (st) {
-      studentDetail.value.name = st.name
-      studentDetail.value.student_no = st.student_no
-      studentDetail.value.class_name = st.class_name
-    }
-  } catch {} finally { loading.value = false }
+  } catch (e: any) { console.error('loadStudentScores error:', e) }
+  finally { loading.value = false }
 }
 </script>
