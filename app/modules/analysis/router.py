@@ -46,7 +46,7 @@ async def grade_overview(
 async def get_ranks(
     exam_id: int,
     page: int = Query(1, ge=1),
-    per_page: int = Query(50, ge=1, le=200),
+    per_page: int = Query(50, ge=1, le=2000),
     class_id: int | None = None,
     rank_type: str = "total",
     db: AsyncSession = Depends(get_db),
