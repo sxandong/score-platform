@@ -37,19 +37,18 @@
 
     <!-- 班级表格 -->
     <el-table :data="scoreData" border stripe v-if="mode==='class' && scoreData.length" v-loading="loading">
-      <el-table-column prop="student_no" label="学籍号" width="120" />
-      <el-table-column prop="student_name" label="姓名" width="100" />
-      <el-table-column label="语文" width="70"><template #default="{row}">{{ row.yws?.语文 }}</template></el-table-column>
-      <el-table-column label="数学" width="70"><template #default="{row}">{{ row.yws?.数学 }}</template></el-table-column>
-      <el-table-column label="外语" width="70"><template #default="{row}">{{ row.yws?.外语 }}</template></el-table-column>
-      <el-table-column label="语数外" width="80"><template #default="{row}">{{ row.yws_total }}</template></el-table-column>
-      <el-table-column label="选考1"><template #default="{row}">{{ top3Col(row,0) }}</template></el-table-column>
-      <el-table-column label="选考2"><template #default="{row}">{{ top3Col(row,1) }}</template></el-table-column>
-      <el-table-column label="选考3"><template #default="{row}">{{ top3Col(row,2) }}</template></el-table-column>
-      <el-table-column label="7选3" width="80"><template #default="{row}">{{ row.top3_total }}</template></el-table-column>
+      <el-table-column prop="student_no" label="学籍号" width="130" fixed />
+      <el-table-column prop="student_name" label="姓名" width="90" fixed />
+      <el-table-column v-for="sn in ALL_SUBJS" :key="sn" :label="sn" width="72">
+        <template #default="{row}">{{ row.subjects[sn] }}</template>
+      </el-table-column>
       <el-table-column prop="total" label="总分" width="80" />
-      <el-table-column prop="class_rank" label="班排" width="70" />
-      <el-table-column prop="grade_rank" label="级排" width="70" />
+      <el-table-column prop="class_rank" label="班排" width="65" />
+      <el-table-column prop="grade_rank" label="级排" width="65" />
+      <el-table-column prop="yws_total" label="语数外总分" width="100" />
+      <el-table-column prop="yws_rank" label="语数外排名" width="100" />
+      <el-table-column prop="top3_total" label="7选3总分" width="95" />
+      <el-table-column prop="top3_rank" label="7选3排名" width="95" />
     </el-table>
 
     <!-- 学生成绩卡片 -->
@@ -107,26 +106,21 @@ const scoreData = ref<any[]>([]); const studentDetail = ref<any>(null)
 const loading = ref(false)
 const rankCache = ref<Record<string, any[]>>({})  // 缓存同一考试的排名数据
 
-const scoreCols = computed(() => scoreData.value[0]?.subjects || {})
 const ywsList = computed(() => {
   if (!studentDetail.value?.yws) return []
-  return Object.entries(studentDetail.value.yws).map(([k,v]) => ({name:k, score:v, full:['语文','数学','外语'].includes(k)?150:100}))
+  return Object.entries(studentDetail.value.yws).map(([k,v]) => ({name:k, score:v, full:150}))
 })
 const top3List = computed(() => {
   if (!studentDetail.value?.top3) return []
   return Object.entries(studentDetail.value.top3).map(([k,v]) => ({name:k, score:v, full:100}))
 })
-function top3Col(row: any, idx: number): string {
-  const items = row.top3 ? Object.entries(row.top3) : []
-  if (idx >= items.length) return ''
-  const [k, v] = items[idx]
-  return `${k}: ${v}`
-}
 
 onMounted(async () => {
   try { const r = await api.get('/exams'); exams.value = r.data } catch {}
   try { const r = await api.get('/classes'); classes.value = r.data } catch {}
 })
+
+const ALL_SUBJS = ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术']
 
 function onExamChange() { studentDetail.value = null; studentResults.value = []; rankCache.value = {} }
 function fmt(v: any): string { return (v === null || v === undefined || v === '') ? '-' : String(v) }

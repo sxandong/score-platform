@@ -86,6 +86,20 @@ async def get_class_scores(db: AsyncSession, exam_id: int, class_id: int) -> lis
         data["top3"] = dict(top3_items)
         data["top3_total"] = sum(v for _, v in top3_items)
 
+    # 查询语数外和7选3排名
+    from app.models.audit import RankSnapshot
+    student_ids = list(student_scores.keys())
+    if student_ids:
+        for rank_type, key in [("yuwai", "yws_rank"), ("top3", "top3_rank")]:
+            result = await db.execute(
+                select(RankSnapshot).where(
+                    and_(RankSnapshot.exam_id == exam_id,
+                         RankSnapshot.rank_type == rank_type,
+                         RankSnapshot.student_id.in_(student_ids))))
+            for rs in result.scalars().all():
+                if rs.student_id in student_scores:
+                    student_scores[rs.student_id][key] = rs.grade_rank
+
     return list(student_scores.values())
 
 
