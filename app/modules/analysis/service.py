@@ -1,6 +1,7 @@
 """Analysis 模块业务逻辑 — 统计分析"""
 from sqlalchemy import select, func, and_, case
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.exam import Exam, ExamSubject, Score
 from app.models.base_data import Class, Student, Subject
@@ -69,33 +70,38 @@ async def class_compare(
 async def student_trend(
     db: AsyncSession, student_id: int, subject_id: int | None = None,
 ) -> list[dict]:
-    """学生成绩纵向追踪"""
+    """学生成绩纵向追踪 — 返回每次考试的各科成绩"""
     conditions = [Score.student_id == student_id]
     if subject_id:
         conditions.append(Score.subject_id == subject_id)
 
+    # 获取所有成绩 (含科目名)
     result = await db.execute(
-        select(
-            Exam.id, Exam.name, Exam.exam_date,
-            func.sum(Score.total_score).label("total"),
-            func.min(Score.grade_rank).label("rank"),
-        ).select_from(Score).join(Exam).where(
-            and_(*conditions)
-        ).group_by(Exam.id, Exam.name, Exam.exam_date).order_by(
-            Exam.exam_date.asc()
-        )
+        select(Score).options(
+            selectinload(Score.exam), selectinload(Score.subject)
+        ).where(and_(*conditions)).order_by(Score.exam_id)
     )
+    scores = list(result.scalars().all())
 
-    return [
-        {
-            "exam_id": row.id,
-            "exam_name": row.name,
-            "exam_date": row.exam_date.isoformat() if row.exam_date else None,
-            "total_score": float(row.total),
-            "grade_rank": row.rank,
-        }
-        for row in result.all()
-    ]
+    # 按考试分组
+    exam_data: dict[int, dict] = {}
+    for s in scores:
+        eid = s.exam_id
+        if eid not in exam_data:
+            e = s.exam
+            exam_data[eid] = {
+                "exam_id": eid,
+                "exam_name": e.name if e else "",
+                "exam_date": e.exam_date.isoformat() if e and e.exam_date else None,
+                "subjects": {},
+                "total": 0,
+                "grade_rank": s.grade_rank,
+            }
+        sn = s.subject.name if s.subject else str(s.subject_id)
+        exam_data[eid]["subjects"][sn] = float(s.total_score)
+        exam_data[eid]["total"] += float(s.total_score)
+
+    return list(exam_data.values())
 
 
 async def grade_overview(
