@@ -53,40 +53,29 @@
     </el-table>
     </div>
 
-    <!-- 学生成绩卡片 -->
-    <div v-if="mode==='student' && studentDetail" v-loading="loading">
-      <el-card style="margin-top:16px">
-        <template #header>
-          <span style="font-size:18px;font-weight:bold">
-            {{ studentDetail.name }} ({{ studentDetail.student_no }})
-            — {{ studentDetail.class_name }} — {{ examName2 }}
-          </span>
+    <!-- 学生成绩表格 (与班级格式一致) -->
+    <div v-if="mode==='student' && studentDetail" v-loading="loading" style="margin-top:16px">
+      <el-alert type="info" :closable="false" show-icon style="margin-bottom:12px">
+        <template #title>
+          {{ studentDetail.name }} ({{ studentDetail.student_no }}) — {{ studentDetail.class_name }} — {{ examName2 }}
         </template>
-
-        <el-row :gutter="12" style="margin-bottom:16px">
-          <el-col :span="4"><el-statistic title="总分" :value="studentDetail.total" /></el-col>
-          <el-col :span="4"><el-statistic title="班级排名"><span style="color:#409EFF;font-size:20px;font-weight:bold">{{ studentDetail.class_rank }}</span></el-statistic></el-col>
-          <el-col :span="4"><el-statistic title="年级排名"><span style="color:#409EFF;font-size:20px;font-weight:bold">{{ studentDetail.grade_rank }}</span></el-statistic></el-col>
-          <el-col :span="4"><el-statistic title="语数外"><span style="font-size:20px">{{ studentDetail.yuwai }}</span></el-statistic></el-col>
-          <el-col :span="4"><el-statistic title="语数外排名"><span style="color:#E6A23C;font-size:20px;font-weight:bold">{{ studentDetail.yuwai_rank }}</span></el-statistic></el-col>
-          <el-col :span="4"><el-statistic title="7选3"><span style="font-size:20px">{{ studentDetail.top3 }}</span></el-statistic></el-col>
-          <el-col :span="4"><el-statistic title="7选3排名"><span style="color:#67C23A;font-size:20px;font-weight:bold">{{ studentDetail.top3_rank }}</span></el-statistic></el-col>
-        </el-row>
-
-        <h4 style="margin:12px 0 8px">语数外</h4>
-        <el-table :data="ywsList" border stripe size="small">
-          <el-table-column prop="name" label="科目" width="100" />
-          <el-table-column prop="score" label="分数" width="80" />
-          <el-table-column prop="full" label="满分" width="80" />
-        </el-table>
-
-        <h4 style="margin:12px 0 8px">7选3 (最优3科)</h4>
-        <el-table :data="top3List" border stripe size="small">
-          <el-table-column prop="name" label="科目" width="100" />
-          <el-table-column prop="score" label="分数" width="80" />
-          <el-table-column prop="full" label="满分" width="80" />
-        </el-table>
-      </el-card>
+      </el-alert>
+      <div style="overflow-x:auto;width:100%">
+      <el-table :data="[studentDetail]" border stripe>
+        <el-table-column prop="student_no" label="学籍号" width="130" />
+        <el-table-column prop="name" label="姓名" width="90" />
+        <el-table-column v-for="sn in ALL_SUBJS" :key="sn" :label="sn" width="72">
+          <template #default="{row}">{{ row.subjects[sn] }}</template>
+        </el-table-column>
+        <el-table-column prop="total" label="总分" width="80" />
+        <el-table-column prop="class_rank" label="班排" width="65" />
+        <el-table-column prop="grade_rank" label="级排" width="65" />
+        <el-table-column prop="yuwai" label="语数外总分" width="100" />
+        <el-table-column prop="yuwai_rank" label="语数外排名" width="100" />
+        <el-table-column prop="top3" label="7选3总分" width="95" />
+        <el-table-column prop="top3_rank" label="7选3排名" width="95" />
+      </el-table>
+      </div>
     </div>
 
     <el-empty v-if="!scoreData.length && !studentDetail"
@@ -108,14 +97,6 @@ const scoreData = ref<any[]>([]); const studentDetail = ref<any>(null)
 const loading = ref(false)
 const rankCache = ref<Record<string, any[]>>({})  // 缓存同一考试的排名数据
 
-const ywsList = computed(() => {
-  if (!studentDetail.value?.yws) return []
-  return Object.entries(studentDetail.value.yws).map(([k,v]) => ({name:k, score:v, full:150}))
-})
-const top3List = computed(() => {
-  if (!studentDetail.value?.top3) return []
-  return Object.entries(studentDetail.value.top3).map(([k,v]) => ({name:k, score:v, full:100}))
-})
 
 onMounted(async () => {
   try { const r = await api.get('/exams'); exams.value = r.data } catch {}
@@ -188,6 +169,7 @@ async function loadStudentScores() {
 
     studentDetail.value = {
       name: st.name || '', student_no: st.student_no || '', class_name: st.class_name || '',
+      subjects: exam.subjects || {},
       total: Number(exam.total) || 0,
       grade_rank: exam.grade_rank ?? '-',
       class_rank: exam.class_rank ?? '-',
@@ -195,8 +177,6 @@ async function loadStudentScores() {
       yuwai_rank: ywMatch ? ywMatch.rank : '-',
       top3: t3Match ? Number(t3Match.total_score) : (Number(exam.top3_total) || 0),
       top3_rank: t3Match ? t3Match.rank : '-',
-      yws: exam.yws || {},
-      top3: exam.top3 || {},
     }
   } catch (e: any) {
     console.error('loadStudentScores:', e)
