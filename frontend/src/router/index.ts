@@ -28,6 +28,18 @@ const router = createRouter({
           meta: { title: '用户管理', roles: ['admin'] },
         },
         {
+          path: 'grades-classes',
+          name: 'grades-classes',
+          component: () => import('@/views/system/GradeClassManage.vue'),
+          meta: { title: '年级班级', roles: ['admin'] },
+        },
+        {
+          path: 'students',
+          name: 'students',
+          component: () => import('@/views/system/StudentManage.vue'),
+          meta: { title: '学生管理', roles: ['admin'] },
+        },
+        {
           path: 'exams',
           name: 'exams',
           component: () => import('@/views/system/ExamManage.vue'),

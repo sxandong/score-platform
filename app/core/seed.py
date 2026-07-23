@@ -110,8 +110,68 @@ async def seed_subjects(db: AsyncSession) -> None:
     await db.flush()
 
 
+async def seed_grades(db: AsyncSession) -> None:
+    from app.models.base_data import Grade
+    for name in ["高一", "高二", "高三"]:
+        result = await db.execute(select(Grade).where(Grade.name == name))
+        if result.scalar_one_or_none() is None:
+            db.add(Grade(name=name))
+    await db.flush()
+
+
+async def seed_semesters(db: AsyncSession) -> None:
+    from app.models.base_data import Semester
+    from datetime import date
+    semesters = [
+        ("2026-2027学年第一学期", date(2026, 9, 1), date(2027, 1, 31), True),
+        ("2026-2027学年第二学期", date(2027, 2, 1), date(2027, 7, 15), False),
+    ]
+    for name, start, end, current in semesters:
+        result = await db.execute(select(Semester).where(Semester.name == name))
+        if result.scalar_one_or_none() is None:
+            db.add(Semester(name=name, start_date=start, end_date=end, is_current=current))
+    await db.flush()
+
+
+async def seed_demo_classes_and_students(db: AsyncSession) -> None:
+    from app.models.base_data import Class, Student
+    from datetime import date
+
+    # 检查是否已有班级数据
+    result = await db.execute(select(Class).limit(1))
+    if result.scalar_one_or_none() is not None:
+        return
+
+    # 高一(1)班、高一(2)班
+    classes_data = [
+        ("高一(1)班", 1),
+        ("高一(2)班", 1),
+        ("高二(1)班", 2),
+        ("高三(1)班", 3),
+    ]
+    class_objects = {}
+    for name, grade_id in classes_data:
+        c = Class(name=name, grade_id=grade_id)
+        db.add(c)
+        await db.flush()
+        class_objects[name] = c
+
+    # 为高一(1)班创建30个学生
+    for i in range(1, 31):
+        sno = f"2026{str(i).zfill(4)}"
+        db.add(Student(
+            student_no=sno,
+            name=f"学生{i:02d}",
+            class_id=class_objects["高一(1)班"].id,
+        ))
+    await db.flush()
+
+
 async def run_all_seeds(db: AsyncSession) -> None:
     await seed_roles_and_permissions(db)
     await seed_admin_user(db)
     await seed_subjects(db)
+    await seed_grades(db)
+    await seed_semesters(db)
+    await seed_demo_classes_and_students(db)
     await db.commit()

@@ -61,6 +61,16 @@ async def update_exam(
     return success_response(data=service._exam_to_dict(exam), message="考试更新成功")
 
 
+@router.delete("/{exam_id}")
+async def delete_exam(
+    exam_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    await service.delete_exam(db, exam_id)
+    return success_response(message="考试已删除")
+
+
 @router.put("/{exam_id}/lock")
 async def lock_exam(
     exam_id: int,

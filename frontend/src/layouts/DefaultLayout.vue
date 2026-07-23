@@ -8,6 +8,8 @@
         active-text-color="#409EFF" router>
         <el-menu-item index="/dashboard"><el-icon><DataAnalysis /></el-icon> 仪表盘</el-menu-item>
         <el-menu-item v-if="auth.hasRole('admin')" index="/users"><el-icon><User /></el-icon> 用户管理</el-menu-item>
+        <el-menu-item v-if="auth.hasRole('admin')" index="/grades-classes"><el-icon><School /></el-icon> 年级班级</el-menu-item>
+        <el-menu-item v-if="auth.hasRole('admin')" index="/students"><el-icon><Avatar /></el-icon> 学生管理</el-menu-item>
         <el-menu-item v-if="auth.hasPermission('exam:read')" index="/exams"><el-icon><Document /></el-icon> 考试管理</el-menu-item>
         <el-sub-menu v-if="auth.hasPermission('score:create') || auth.hasPermission('score:read')" index="scores">
           <template #title><el-icon><Edit /></el-icon> 成绩管理</template>

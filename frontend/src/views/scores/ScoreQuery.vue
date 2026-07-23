@@ -32,7 +32,10 @@ const exams = ref([]); const classes = ref([])
 const examId = ref<number | null>(null); const classId = ref<number | null>(null)
 const scoreData = ref([]); const loading = ref(false)
 
-onMounted(async () => { try { const r = await api.get('/exams'); exams.value = r.data } catch {} })
+onMounted(async () => {
+  try { const r = await api.get('/exams'); exams.value = r.data } catch {}
+  try { const r = await api.get('/classes'); classes.value = r.data } catch {}
+})
 
 async function loadScores() {
   if (!examId.value || !classId.value) return

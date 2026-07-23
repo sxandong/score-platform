@@ -32,21 +32,24 @@ const examId = ref<number | null>(null); const classId = ref<number | null>(null
 const examSubjects = ref<any[]>([]); const scoreRows = ref<any[]>([])
 const submitting = ref(false)
 
-onMounted(async () => { try { const r = await api.get('/exams'); exams.value = r.data } catch {} })
+onMounted(async () => {
+  try { const r = await api.get('/exams'); exams.value = r.data } catch {}
+  try { const r = await api.get('/classes'); classes.value = r.data } catch {}
+})
 
 async function loadStudents() {
   if (!examId.value || !classId.value) return
   try {
     const exr = await api.get(`/exams/${examId.value}`)
     examSubjects.value = exr.data.subjects
-    // Use existing scores for this class+exam if available
-    const sr = await api.get(`/scores/class/${classId.value}/exam/${examId.value}`)
-    if (sr.data.length) {
-      scoreRows.value = sr.data
-    } else {
-      // Placeholder — in production, fetch students from /api/students?class_id=
-      scoreRows.value = [{ student_id: 1, student_no: '2024001', student_name: '示例学生', scores: {} }]
-    }
+    // 从学生API加载班级学生
+    const sr = await api.get('/students', { params: { class_id: classId.value, per_page: 100 } })
+    scoreRows.value = sr.data.map((s: any) => ({
+      student_id: s.id,
+      student_no: s.student_no,
+      student_name: s.name,
+      scores: {},
+    }))
   } catch (e: any) { ElMessage.error(e.message) }
 }
 

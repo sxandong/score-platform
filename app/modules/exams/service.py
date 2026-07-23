@@ -9,6 +9,13 @@ from app.models.base_data import Subject
 from app.core.exceptions import NotFoundException
 
 
+def _parse_date(value: str) -> date:
+    """Parse date from ISO format or date string; handles '2026-06-25T16:00:00.000Z'"""
+    if "T" in value:
+        value = value.split("T")[0]
+    return date.fromisoformat(value)
+
+
 async def list_exams(
     db: AsyncSession, page: int = 1, per_page: int = 20,
     grade_id: int | None = None, semester_id: int | None = None,
@@ -59,7 +66,7 @@ async def create_exam(db: AsyncSession, data, created_by: int) -> Exam:
         exam_type=data.exam_type,
         semester_id=data.semester_id,
         grade_id=data.grade_id,
-        exam_date=date.fromisoformat(data.exam_date) if data.exam_date else None,
+        exam_date=_parse_date(data.exam_date) if data.exam_date else None,
         created_by=created_by,
     )
     db.add(exam)
@@ -74,7 +81,9 @@ async def create_exam(db: AsyncSession, data, created_by: int) -> Exam:
         )
         db.add(es)
     await db.flush()
-    return exam
+
+    # Re-query with eager loading to avoid lazy-load issues
+    return await get_exam(db, exam.id)
 
 
 async def update_exam(db: AsyncSession, exam_id: int, data) -> Exam:
@@ -84,11 +93,28 @@ async def update_exam(db: AsyncSession, exam_id: int, data) -> Exam:
     if data.exam_type is not None:
         exam.exam_type = data.exam_type
     if data.exam_date is not None:
-        exam.exam_date = date.fromisoformat(data.exam_date) if data.exam_date else None
+        exam.exam_date = _parse_date(data.exam_date) if data.exam_date else None
     if data.status is not None:
         exam.status = data.status
     await db.flush()
     return exam
+
+
+async def delete_exam(db: AsyncSession, exam_id: int) -> None:
+    from sqlalchemy import text
+    await db.execute(text("DELETE FROM rank_snapshots WHERE exam_id = :eid"),
+                     {"eid": exam_id})
+    await db.execute(text(
+        "DELETE FROM score_details WHERE score_id IN "
+        "(SELECT id FROM scores WHERE exam_id = :eid)"
+    ), {"eid": exam_id})
+    await db.execute(text("DELETE FROM scores WHERE exam_id = :eid"),
+                     {"eid": exam_id})
+    await db.execute(text("DELETE FROM exam_subjects WHERE exam_id = :eid"),
+                     {"eid": exam_id})
+    await db.execute(text("DELETE FROM exams WHERE id = :eid"),
+                     {"eid": exam_id})
+    await db.commit()
 
 
 def _exam_to_dict(exam: Exam) -> dict:

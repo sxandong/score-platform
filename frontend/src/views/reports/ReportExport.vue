@@ -22,7 +22,10 @@ import { ElMessage } from 'element-plus'
 const exams = ref([]); const classes = ref([])
 const examId = ref<number | null>(null); const classId = ref<number | null>(null)
 
-onMounted(async () => { try { const r = await api.get('/exams'); exams.value = r.data } catch {} })
+onMounted(async () => {
+  try { const r = await api.get('/exams'); exams.value = r.data } catch {}
+  try { const r = await api.get('/classes'); classes.value = r.data } catch {}
+})
 
 async function exportSheet() {
   if (!examId.value || !classId.value) { ElMessage.warning('请选择考试和班级'); return }
