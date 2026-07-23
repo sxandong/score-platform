@@ -40,7 +40,7 @@
     <el-table :data="scoreData" border stripe v-if="mode==='class' && scoreData.length" v-loading="loading">
       <el-table-column prop="student_no" label="学籍号" width="130" fixed />
       <el-table-column prop="student_name" label="姓名" width="90" fixed />
-      <el-table-column v-for="sn in ALL_SUBJS" :key="sn" :label="sn" width="72">
+      <el-table-column v-for="sn in visibleSubjs" :key="sn" :label="sn" width="72">
         <template #default="{row}">{{ row.subjects[sn] }}</template>
       </el-table-column>
       <el-table-column prop="total" label="总分" width="80" />
@@ -64,7 +64,7 @@
       <el-table :data="[studentDetail]" border stripe>
         <el-table-column prop="student_no" label="学籍号" width="130" />
         <el-table-column prop="name" label="姓名" width="90" />
-        <el-table-column v-for="sn in ALL_SUBJS" :key="sn" :label="sn" width="72">
+        <el-table-column v-for="sn in studentSubjs" :key="sn" :label="sn" width="72">
           <template #default="{row}">{{ row.subjects[sn] }}</template>
         </el-table-column>
         <el-table-column prop="total" label="总分" width="80" />
@@ -104,6 +104,16 @@ onMounted(async () => {
 })
 
 const ALL_SUBJS = ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术']
+
+// 班级查询中只显示有数据的科目列
+const visibleSubjs = computed(() => {
+  return ALL_SUBJS.filter(sn => scoreData.value.some((row: any) => row.subjects?.[sn] != null))
+})
+// 学生查询中只显示有数据的科目列
+const studentSubjs = computed(() => {
+  if (!studentDetail.value?.subjects) return []
+  return ALL_SUBJS.filter(sn => studentDetail.value.subjects[sn] != null)
+})
 
 function onExamChange() { studentDetail.value = null; studentResults.value = []; rankCache.value = {} }
 function fmt(v: any): string { return (v === null || v === undefined || v === '') ? '-' : String(v) }
