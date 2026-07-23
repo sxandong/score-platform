@@ -25,7 +25,7 @@ ROLE_PERMISSION_MAP = {
 }
 
 DEFAULT_SUBJECTS = [
-    "语文", "数学", "英语", "物理", "化学",
+    "语文", "数学", "外语", "物理", "化学",
     "生物", "政治", "历史", "地理", "技术",
 ]
 
@@ -103,6 +103,9 @@ async def seed_admin_user(db: AsyncSession) -> None:
 
 
 async def seed_subjects(db: AsyncSession) -> None:
+    # 迁移: 英语 → 外语
+    from sqlalchemy import text
+    await db.execute(text("UPDATE subjects SET name='外语' WHERE name='英语'"))
     for i, name in enumerate(DEFAULT_SUBJECTS):
         result = await db.execute(select(Subject).where(Subject.name == name))
         if result.scalar_one_or_none() is None:
