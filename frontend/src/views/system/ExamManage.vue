@@ -5,7 +5,9 @@
     <el-table :data="exams" border stripe v-loading="loading">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="name" label="考试名称" />
-      <el-table-column prop="exam_type" label="类型" width="100" />
+      <el-table-column label="类型" width="100">
+        <template #default="{ row }">{{ typeLabel(row.exam_type) }}</template>
+      </el-table-column>
       <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }"><el-tag :type="row.status==='locked'?'danger':'success'">{{ row.status }}</el-tag></template>
       </el-table-column>
@@ -30,7 +32,7 @@
       <el-form :model="form" label-width="80px">
         <el-form-item label="名称"><el-input v-model="form.name" /></el-form-item>
         <el-form-item label="类型">
-          <el-select v-model="form.exam_type"><el-option v-for="t in types" :key="t" :label="t" :value="t" /></el-select>
+          <el-select v-model="form.exam_type"><el-option v-for="t in typeOptions" :key="t.value" :label="t.label" :value="t.value" /></el-select>
         </el-form-item>
         <el-form-item label="考试日期"><el-date-picker v-model="form.exam_date" type="date" /></el-form-item>
       </el-form>
@@ -48,7 +50,14 @@ import api from '@/api'
 import { ElMessage } from 'element-plus'
 
 const exams = ref([]); const loading = ref(false); const showDialog = ref(false)
-const types = ['monthly', 'midterm', 'final', 'mock', 'other']
+const typeOptions = [
+  { value: 'monthly', label: '月考' },
+  { value: 'midterm', label: '期中' },
+  { value: 'final', label: '期末' },
+  { value: 'mock', label: '模拟' },
+  { value: 'other', label: '其他' },
+]
+const typeLabel = (v: string) => typeOptions.find(t => t.value === v)?.label || v
 const form = reactive({ name: '', exam_type: 'midterm', exam_date: '', semester_id: 1, grade_id: 1, subjects: [] })
 
 async function loadExams() {
