@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "成绩管理与分析平台"
     DEBUG: bool = True
 
+    # Database — set DB_TYPE=sqlite for local dev without MySQL
+    DB_TYPE: str = "sqlite"   # "mysql" | "sqlite"
     DB_HOST: str = "localhost"
     DB_PORT: int = 3306
     DB_USER: str = "root"
@@ -16,10 +18,16 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
+        if self.DB_TYPE == "sqlite":
+            return "sqlite+aiosqlite:///admission_data.db"
         return (
             f"mysql+aiomysql://{self.DB_USER}:{self.DB_PASSWORD}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )
+
+    @property
+    def DATABASE_IS_SQLITE(self) -> bool:
+        return self.DB_TYPE == "sqlite"
 
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379

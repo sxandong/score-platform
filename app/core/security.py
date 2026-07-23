@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.dependencies import get_db
 from app.core.exceptions import UnauthorizedException, ForbiddenException
-from app.models.user import User
+from app.models.user import User, Role
 
 security_scheme = HTTPBearer(auto_error=False)
 
@@ -58,7 +58,9 @@ async def get_current_user(
 
     user_id = int(payload["sub"])
     result = await db.execute(
-        select(User).options(selectinload(User.roles)).where(User.id == user_id)
+        select(User).options(
+            selectinload(User.roles).selectinload(Role.permissions)
+        ).where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
     if user is None or user.status != "active":
