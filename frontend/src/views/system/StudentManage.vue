@@ -7,9 +7,14 @@
       </el-select></el-col>
       <el-col :span="3"><el-input v-model="keyword" placeholder="搜索" clearable @input="loadStudents" /></el-col>
       <el-col :span="3"><el-button type="primary" @click="openDialog()">新增学生</el-button></el-col>
+      <el-col :span="2">
+        <el-select v-model="importClassId" placeholder="导入到班级" style="width:130px" size="default">
+          <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
+        </el-select>
+      </el-col>
       <el-col :span="3">
         <el-upload :show-file-list="false" :before-upload="handleImport" accept=".xlsx,.xls">
-          <el-button type="success">Excel导入</el-button>
+          <el-button type="success" :disabled="!importClassId">Excel导入</el-button>
         </el-upload>
       </el-col>
       <el-col :span="3"><el-button type="danger" :disabled="!selected.length" @click="batchDelete">
@@ -22,7 +27,7 @@
     <el-table :data="students" border stripe v-loading="loading" @selection-change="(v:any)=>selected=v">
       <el-table-column type="selection" width="40" />
       <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column prop="student_no" label="学号" width="120" />
+      <el-table-column prop="student_no" label="学籍号" width="120" />
       <el-table-column prop="name" label="姓名" width="100" />
       <el-table-column prop="class_name" label="班级" width="120" />
       <el-table-column prop="status" label="状态" width="80">
@@ -45,7 +50,7 @@
     <!-- 单个新增/编辑 -->
     <el-dialog v-model="dialog" :title="editing?'编辑学生':'新增学生'" width="450px">
       <el-form :model="form" label-width="80px">
-        <el-form-item label="学号"><el-input v-model="form.student_no" /></el-form-item>
+        <el-form-item label="学籍号"><el-input v-model="form.student_no" /></el-form-item>
         <el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item>
         <el-form-item label="班级">
           <el-select v-model="form.class_id"><el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" /></el-select>
@@ -106,6 +111,7 @@ const students = ref<any[]>([]); const classes = ref<any[]>([]); const grades = 
 const loading = ref(false); const page = ref(1); const total = ref(0)
 const filterClassId = ref<number | null>(null); const keyword = ref('')
 const selected = ref<any[]>([])
+const importClassId = ref<number | null>(null)
 
 const dialog = ref(false); const editing = ref<any>(null)
 const form = reactive({ student_no: '', name: '', class_id: 1 })
@@ -145,9 +151,13 @@ async function deleteStudent(id: number) {
   catch (e: any) { ElMessage.error(e.message) }
 }
 async function handleImport(file: File) {
+  if (!importClassId.value) { ElMessage.warning('请选择导入班级'); return false }
   const fd = new FormData(); fd.append('file', file)
   try {
-    const r = await api.post('/students/batch', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    const r = await api.post('/students/batch', fd, {
+      params: { class_id: importClassId.value },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
     ElMessage.success(r.message); loadStudents()
   } catch (e: any) { ElMessage.error(e.message) }
   return false

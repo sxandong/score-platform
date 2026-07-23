@@ -175,7 +175,7 @@ async def batch_import_excel(
     df = pd.read_excel(BytesIO(file_content))
     # 预期列: 学号, 姓名, [各科目名...]
     columns = df.columns.tolist()
-    student_cols = [c for c in columns if c in ("学号", "姓名", "student_no", "name")]
+    student_cols = [c for c in columns if c in ("学号", "学籍号", "姓名", "student_no", "name")]
     subject_cols = [c for c in columns if c not in student_cols]
 
     # 获取考试科目映射
@@ -190,7 +190,7 @@ async def batch_import_excel(
 
     preview = []
     for idx, row in df.iterrows():
-        student_no = str(row.get("学号", row.get("student_no", "")))
+        student_no = str(row.get("学籍号", row.get("学号", row.get("student_no", ""))))
         if not student_no:
             preview.append({"row": idx + 1, "status": "error", "reason": "缺少学号"})
             continue

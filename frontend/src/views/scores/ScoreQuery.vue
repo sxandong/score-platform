@@ -11,7 +11,7 @@
       <el-form-item><el-button type="primary" @click="loadScores">查询</el-button></el-form-item>
     </el-form>
     <el-table :data="scoreData" border stripe v-if="scoreData.length" v-loading="loading">
-      <el-table-column prop="student_no" label="学号" width="120" />
+      <el-table-column prop="student_no" label="学籍号" width="120" />
       <el-table-column prop="student_name" label="姓名" width="100" />
       <el-table-column v-for="(v,k) in scoreData[0]?.subjects" :key="k" :label="k" width="100">
         <template #default="{ row }">{{ row.subjects[k] }}</template>

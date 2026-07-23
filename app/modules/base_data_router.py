@@ -336,7 +336,7 @@ async def create_student(
     current_user=Depends(require_role("admin")),
 ):
     result = await db.execute(select(Student).where(Student.student_no == req.student_no))
-    if result.scalar_one_or_none(): raise ValidationException("学号已存在")
+    if result.scalar_one_or_none(): raise ValidationException("学籍号已存在")
     s = Student(student_no=req.student_no, name=req.name,
                 class_id=req.class_id, user_id=req.user_id)
     db.add(s); await db.flush()
@@ -398,10 +398,10 @@ async def batch_import_students(
 
     created, skipped, errors = 0, 0, []
     for idx, row in df.iterrows():
-        sno = str(row.get("学号", row.get("student_no", ""))).strip()
+        sno = str(row.get("学籍号", row.get("学号", row.get("student_no", "")))).strip()
         name = str(row.get("姓名", row.get("name", ""))).strip()
         if not sno or not name:
-            errors.append({"row": idx + 2, "reason": "学号或姓名为空"})
+            errors.append({"row": idx + 2, "reason": "学籍号或姓名为空"})
             skipped += 1; continue
 
         cid = class_id or int(row.get("班级ID", row.get("class_id", 0)))

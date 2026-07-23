@@ -45,7 +45,7 @@ async def export_score_sheet(
 
             if st and st.class_id == class_id:  # 只导出指定班级
                 rows[s.student_id] = {
-                    "学号": st.student_no,
+                    "学籍号": st.student_no,
                     "姓名": st.name,
                 }
                 rows[s.student_id][subj_name] = float(s.total_score)
@@ -59,7 +59,7 @@ async def export_score_sheet(
     df = pd.DataFrame(list(rows.values()))
 
     # 计算总分和排名
-    score_cols = [c for c in df.columns if c not in ("学号", "姓名")]
+    score_cols = [c for c in df.columns if c not in ("学籍号", "姓名")]
     if score_cols:
         df["总分"] = df[score_cols].sum(axis=1)
         df = df.sort_values("总分", ascending=False)

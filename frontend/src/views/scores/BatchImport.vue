@@ -15,7 +15,7 @@
       <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }"><el-tag :type="row.status==='ok'?'success':'danger'">{{ row.status }}</el-tag></template>
       </el-table-column>
-      <el-table-column prop="student_no" label="学号" width="120" />
+      <el-table-column prop="student_no" label="学籍号" width="120" />
       <el-table-column prop="reason" label="备注" />
     </el-table>
     <el-button v-if="preview.length" type="primary" @click="confirmImport" :loading="importing" style="margin-top:16px">确认导入</el-button>

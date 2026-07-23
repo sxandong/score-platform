@@ -10,7 +10,7 @@
       </el-form-item>
     </el-form>
     <el-table :data="scoreRows" border stripe v-if="examId && classId" style="margin-top:16px">
-      <el-table-column prop="student_no" label="学号" width="120" />
+      <el-table-column prop="student_no" label="学籍号" width="120" />
       <el-table-column prop="student_name" label="姓名" width="100" fixed />
       <el-table-column v-for="s in examSubjects" :key="s.id" :label="s.subject_name" width="120">
         <template #default="{ row }">
