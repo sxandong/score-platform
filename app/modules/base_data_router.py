@@ -385,16 +385,23 @@ async def delete_student(
 @router.post("/students/batch")
 async def batch_import_students(
     file: UploadFile = File(...),
-    class_id: int | None = None,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role("admin")),
 ):
-    """Excel批量导入学生: 列=学号,姓名[,班级ID]"""
+    """Excel批量导入: 列=学籍号,姓名,班级(名称或ID)"""
     content = await file.read()
     try:
         df = pd.read_excel(BytesIO(content))
     except Exception as e:
         raise ValidationException(f"Excel解析失败: {e}")
+
+    # 预加载班级映射 (名称→ID)
+    result = await db.execute(select(Class))
+    class_by_name: dict[str, int] = {}
+    class_by_id: dict[int, int] = {}
+    for c in result.scalars().all():
+        class_by_name[c.name] = c.id
+        class_by_id[c.id] = c.id
 
     created, skipped, errors = 0, 0, []
     for idx, row in df.iterrows():
@@ -404,9 +411,17 @@ async def batch_import_students(
             errors.append({"row": idx + 2, "reason": "学籍号或姓名为空"})
             skipped += 1; continue
 
-        cid = class_id or int(row.get("班级ID", row.get("class_id", 0)))
+        # 识别班级: 优先班级名称，次选班级ID
+        cls_val = row.get("班级", row.get("班级名称", row.get("class_name",
+                   row.get("班级ID", row.get("class_id", "")))))
+        cls_str = str(cls_val).strip() if pd.notna(cls_val) else ""
+        if cls_str:
+            cid = class_by_name.get(cls_str) or class_by_id.get(
+                int(cls_str) if cls_str.isdigit() else 0)
+        else:
+            cid = None
         if not cid:
-            errors.append({"row": idx + 2, "reason": "未指定班级"})
+            errors.append({"row": idx + 2, "reason": f"班级'{cls_str}'不存在"})
             skipped += 1; continue
 
         result = await db.execute(select(Student).where(Student.student_no == sno))

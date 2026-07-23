@@ -7,14 +7,9 @@
       </el-select></el-col>
       <el-col :span="3"><el-input v-model="keyword" placeholder="搜索" clearable @input="loadStudents" /></el-col>
       <el-col :span="3"><el-button type="primary" @click="openDialog()">新增学生</el-button></el-col>
-      <el-col :span="2">
-        <el-select v-model="importClassId" placeholder="导入到班级" style="width:130px" size="default">
-          <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
-        </el-select>
-      </el-col>
       <el-col :span="3">
         <el-upload :show-file-list="false" :before-upload="handleImport" accept=".xlsx,.xls">
-          <el-button type="success" :disabled="!importClassId">Excel导入</el-button>
+          <el-button type="success">Excel导入</el-button>
         </el-upload>
       </el-col>
       <el-col :span="3"><el-button type="danger" :disabled="!selected.length" @click="batchDelete">
@@ -111,7 +106,6 @@ const students = ref<any[]>([]); const classes = ref<any[]>([]); const grades = 
 const loading = ref(false); const page = ref(1); const total = ref(0)
 const filterClassId = ref<number | null>(null); const keyword = ref('')
 const selected = ref<any[]>([])
-const importClassId = ref<number | null>(null)
 
 const dialog = ref(false); const editing = ref<any>(null)
 const form = reactive({ student_no: '', name: '', class_id: 1 })
@@ -151,11 +145,9 @@ async function deleteStudent(id: number) {
   catch (e: any) { ElMessage.error(e.message) }
 }
 async function handleImport(file: File) {
-  if (!importClassId.value) { ElMessage.warning('请选择导入班级'); return false }
   const fd = new FormData(); fd.append('file', file)
   try {
     const r = await api.post('/students/batch', fd, {
-      params: { class_id: importClassId.value },
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     ElMessage.success(r.message); loadStudents()
