@@ -36,6 +36,7 @@
     </div>
 
     <!-- 班级表格 -->
+    <div style="overflow-x:auto;width:100%">
     <el-table :data="scoreData" border stripe v-if="mode==='class' && scoreData.length" v-loading="loading">
       <el-table-column prop="student_no" label="学籍号" width="130" fixed />
       <el-table-column prop="student_name" label="姓名" width="90" fixed />
@@ -50,6 +51,7 @@
       <el-table-column prop="top3_total" label="7选3总分" width="95" />
       <el-table-column prop="top3_rank" label="7选3排名" width="95" />
     </el-table>
+    </div>
 
     <!-- 学生成绩卡片 -->
     <div v-if="mode==='student' && studentDetail" v-loading="loading">
