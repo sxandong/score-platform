@@ -443,19 +443,24 @@ async def promote_students(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role("admin")),
 ):
-    """升年级: 将该年级所有学生移到目标年级对应班级"""
+    """升年级: 按班号(括号内数字)匹配，如高一(3)班→高二(3)班"""
     from sqlalchemy import text
-    # 获取原年级班级→目标年级班级的映射 (按班级名称)
+    import re
+
+    def _class_number(c) -> int:
+        m = re.search(r'\((\d+)\)', c.name)
+        return int(m.group(1)) if m else 0
+
     result = await db.execute(
         select(Class).where(Class.grade_id.in_([req.from_grade_id, req.target_grade_id])))
     classes = list(result.scalars().all())
 
     src_classes = [c for c in classes if c.grade_id == req.from_grade_id]
-    tgt_classes = {c.name: c.id for c in classes if c.grade_id == req.target_grade_id}
+    tgt_by_number = {_class_number(c): c.id for c in classes if c.grade_id == req.target_grade_id}
 
     migrated = 0
     for sc in src_classes:
-        tgt_id = tgt_classes.get(sc.name)
+        tgt_id = tgt_by_number.get(_class_number(sc))
         if tgt_id is None: continue
         result = await db.execute(
             select(func.count(Student.id)).where(Student.class_id == sc.id))

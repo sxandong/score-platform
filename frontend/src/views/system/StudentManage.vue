@@ -70,7 +70,7 @@
           </el-select>
         </el-form-item>
         <el-alert type="info" :closable="false" show-icon style="margin-bottom:8px"
-          title="配对同名班级迁移学生。如目标年级缺少同名班级，该班学生不会被迁移。" />
+          title="按班号(如(3)班→(3)班)匹配目标年级对应班级并迁移学生。无对应班级的跳过。" />
       </el-form>
       <template #footer>
         <el-button @click="showPromote=false">取消</el-button>
