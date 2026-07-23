@@ -1,4 +1,5 @@
-"""Scores 模块业务逻辑"""
+"""Scores module — score entry, query, batch Excel import"""
+import math, re
 import pandas as pd
 from io import BytesIO
 from sqlalchemy import select, func, and_
@@ -6,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.exam import Exam, ExamSubject, Score
-from app.models.base_data import Class, Student, Subject
+from app.models.base_data import Class, Student, Subject, Grade
 from app.core.exceptions import NotFoundException, ForbiddenException
 
 
@@ -14,223 +15,182 @@ async def create_scores(
     db: AsyncSession, exam_id: int, scores_data: list,
     entered_by: int, allowed_class_ids: set[int] | None,
 ) -> dict:
-    """批量录入成绩。allowed_class_ids=None 表示所有班级。"""
-    # 验证考试存在且未锁定
     result = await db.execute(select(Exam).where(Exam.id == exam_id))
     exam = result.scalar_one_or_none()
-    if exam is None:
-        raise NotFoundException("考试不存在")
-    if exam.status == "locked":
-        raise ForbiddenException("考试已锁定，无法录入成绩")
+    if exam is None: raise NotFoundException("考试不存在")
+    if exam.status == "locked": raise ForbiddenException("考试已锁定")
 
-    # 获取考试科目
-    result = await db.execute(
-        select(ExamSubject).where(ExamSubject.exam_id == exam_id)
-    )
+    result = await db.execute(select(ExamSubject).where(ExamSubject.exam_id == exam_id))
     exam_subjects = {es.subject_id: es for es in result.scalars().all()}
 
-    created = 0
-    errors = []
-
+    created = 0; errors = []
     for entry in scores_data:
-        sid = entry["student_id"]
-        subj_id = entry["subject_id"]
-        score_val = entry["total_score"]
-
-        # 验证科目属于本次考试
+        sid = entry["student_id"]; subj_id = entry["subject_id"]; score_val = entry["total_score"]
         es = exam_subjects.get(subj_id)
-        if es is None:
-            errors.append({"student_id": sid, "reason": "科目不在本次考试中"})
-            continue
-
-        # 验证分数范围
+        if es is None: errors.append({"student_id": sid, "reason": "科目不在考试中"}); continue
         if score_val > float(es.full_score):
-            errors.append({
-                "student_id": sid,
-                "reason": f"分数{score_val}超过满分{es.full_score}",
-            })
-            continue
-
-        # 数据权限校验
+            errors.append({"student_id": sid, "reason": f"分数{score_val}超过满分{es.full_score}"}); continue
         if allowed_class_ids is not None:
-            result = await db.execute(
-                select(Student.class_id).where(Student.id == sid)
-            )
-            class_id = result.scalar_one_or_none()
-            if class_id is None or class_id not in allowed_class_ids:
-                errors.append({"student_id": sid, "reason": "无权限"})
-                continue
+            result = await db.execute(select(Student.class_id).where(Student.id == sid))
+            cid = result.scalar_one_or_none()
+            if cid is None or cid not in allowed_class_ids:
+                errors.append({"student_id": sid, "reason": "无权限"}); continue
 
-        # UPSERT
         result = await db.execute(
-            select(Score).where(
-                and_(
-                    Score.exam_id == exam_id,
-                    Score.student_id == sid,
-                    Score.subject_id == subj_id,
-                )
-            )
-        )
+            select(Score).where(and_(Score.exam_id == exam_id, Score.student_id == sid,
+                                      Score.subject_id == subj_id)))
         existing = result.scalar_one_or_none()
-        if existing:
-            existing.total_score = score_val
-            existing.entered_by = entered_by
-        else:
-            db.add(Score(
-                exam_id=exam_id, student_id=sid, subject_id=subj_id,
-                total_score=score_val, entered_by=entered_by,
-            ))
+        if existing: existing.total_score = score_val; existing.entered_by = entered_by
+        else: db.add(Score(exam_id=exam_id, student_id=sid, subject_id=subj_id,
+                            total_score=score_val, entered_by=entered_by))
         created += 1
 
     await db.flush()
-
-    # 同步计算排名 (生产环境可改为 Celery 异步)
     from app.modules.scores.tasks import calculate_ranks_async
     await calculate_ranks_async(exam_id)
-
     return {"count": created, "errors": errors}
 
 
-async def get_class_scores(
-    db: AsyncSession, exam_id: int, class_id: int,
-) -> list[dict]:
-    """获取班级某次考试全部成绩单"""
-    result = await db.execute(
-        select(Student).where(Student.class_id == class_id)
-    )
+async def get_class_scores(db: AsyncSession, exam_id: int, class_id: int) -> list[dict]:
+    result = await db.execute(select(Student).where(Student.class_id == class_id))
     students = {s.id: s for s in result.scalars().all()}
-
     result = await db.execute(
-        select(Score).options(
-            selectinload(Score.subject)
-        ).where(
-            and_(Score.exam_id == exam_id, Score.student_id.in_(students.keys()))
-        ).order_by(Score.student_id)
-    )
-    scores = result.scalars().all()
-
-    # 按学生分组
+        select(Score).options(selectinload(Score.subject)).where(
+            and_(Score.exam_id == exam_id, Score.student_id.in_(students.keys())))
+        .order_by(Score.student_id))
+    scores = list(result.scalars().all())
     student_scores: dict[int, dict] = {}
     for s in scores:
         if s.student_id not in student_scores:
             st = students.get(s.student_id)
             student_scores[s.student_id] = {
-                "student_id": s.student_id,
-                "student_name": st.name if st else "",
-                "student_no": st.student_no if st else "",
-                "subjects": {},
-                "total": 0,
-                "class_rank": s.class_rank,
-                "grade_rank": s.grade_rank,
+                "student_id": s.student_id, "student_name": st.name if st else "",
+                "student_no": st.student_no if st else "", "subjects": {},
+                "total": 0, "class_rank": s.class_rank, "grade_rank": s.grade_rank,
             }
-        student_scores[s.student_id]["subjects"][
-            s.subject.name if s.subject else str(s.subject_id)
-        ] = float(s.total_score)
+        subj_name = s.subject.name if s.subject else str(s.subject_id)
+        student_scores[s.student_id]["subjects"][subj_name] = float(s.total_score)
         student_scores[s.student_id]["total"] += float(s.total_score)
-
     return list(student_scores.values())
 
 
-async def get_student_scores(
-    db: AsyncSession, student_id: int, semester_id: int | None = None,
-) -> list[dict]:
-    """获取学生所有考试成绩"""
-    query = (
-        select(Score).options(
-            selectinload(Score.exam), selectinload(Score.subject)
-        ).where(Score.student_id == student_id)
-    )
-    if semester_id:
-        query = query.join(Exam).where(Exam.semester_id == semester_id)
+async def get_student_scores(db: AsyncSession, student_id: int,
+                              semester_id: int | None = None) -> list[dict]:
+    query = (select(Score).options(selectinload(Score.exam), selectinload(Score.subject))
+             .where(Score.student_id == student_id))
+    if semester_id: query = query.join(Exam).where(Exam.semester_id == semester_id)
     query = query.order_by(Score.exam_id.desc())
-
     result = await db.execute(query)
     scores = result.scalars().all()
-
-    # 按考试分组
     exam_scores: dict[int, dict] = {}
     for s in scores:
         eid = s.exam_id
         if eid not in exam_scores:
             exam_scores[eid] = {
-                "exam_id": eid,
-                "exam_name": s.exam.name if s.exam else "",
+                "exam_id": eid, "exam_name": s.exam.name if s.exam else "",
                 "exam_date": s.exam.exam_date.isoformat() if s.exam and s.exam.exam_date else None,
-                "subjects": {},
-                "total": 0,
-                "grade_rank": s.grade_rank,
+                "subjects": {}, "total": 0, "grade_rank": s.grade_rank,
             }
-        exam_scores[eid]["subjects"][
-            s.subject.name if s.subject else str(s.subject_id)
-        ] = float(s.total_score)
+        subj_name = s.subject.name if s.subject else str(s.subject_id)
+        exam_scores[eid]["subjects"][subj_name] = float(s.total_score)
         exam_scores[eid]["total"] += float(s.total_score)
-
     return sorted(exam_scores.values(), key=lambda x: x["exam_date"] or "", reverse=True)
 
 
 async def batch_import_excel(
     db: AsyncSession, file_content: bytes, exam_id: int,
 ) -> dict:
-    """解析Excel文件，返回预览数据 (不保存)"""
+    """导入Excel成绩: 列=学籍号,姓名,班级,语文,数学,外语,政治,历史,地理,物理,化学,生物,技术"""
     df = pd.read_excel(BytesIO(file_content))
-    # 预期列: 学号, 姓名, [各科目名...]
-    columns = df.columns.tolist()
-    student_cols = [c for c in columns if c in ("学号", "学籍号", "姓名", "student_no", "name")]
-    subject_cols = [c for c in columns if c not in student_cols]
+    df = df.where(pd.notna(df), None)
 
-    # 获取考试科目映射
+    # 科目映射 (列名→subject_id)
     result = await db.execute(
-        select(ExamSubject, Subject.name).join(Subject).where(
-            ExamSubject.exam_id == exam_id
-        )
-    )
-    subject_map = {}
+        select(ExamSubject, Subject.name).join(Subject).where(ExamSubject.exam_id == exam_id))
+    subject_map: dict[str, dict] = {}
     for es, subj_name in result.all():
         subject_map[subj_name] = {"id": es.subject_id, "full_score": float(es.full_score)}
 
-    import math
-    preview = []
+    # 班级映射
+    result = await db.execute(select(Class))
+    class_by_name: dict[str, int] = {c.name: c.id for c in result.scalars().all()}
+
+    # 已有学生映射
+    result = await db.execute(select(Student))
+    student_by_no: dict[str, Student] = {s.student_no: s for s in result.scalars().all()}
+
+    # 年级映射
+    result = await db.execute(select(Grade))
+    grades_by_name: dict[str, Grade] = {g.name: g for g in result.scalars().all()}
+
+    columns = df.columns.tolist()
+    created_students, created_scores, errors = 0, 0, []
+
     for idx, row in df.iterrows():
-        row_data = row.where(pd.notna(row), None)  # NaN → None
-        student_no = str(row_data.get("学籍号", row_data.get("学号",
-                        row_data.get("student_no", ""))) or "")
-        if not student_no or student_no == "None":
-            preview.append({"row": idx + 2, "status": "error", "reason": "缺少学籍号"})
-            continue
+        sno_val = row.get("学籍号")
+        if sno_val is None: errors.append({"row": idx+2, "reason":"缺少学籍号"}); continue
+        sno = str(int(sno_val)) if isinstance(sno_val, float) else str(sno_val)
+        sno = sno.rstrip('.0')
+        if not sno: errors.append({"row": idx+2, "reason":"学籍号为空"}); continue
 
-        scores = {}
-        has_error = False
-        for col in subject_cols:
-            if col in subject_map:
-                val = row_data[col]
-                if val is None or (isinstance(val, float) and math.isnan(val)):
-                    continue  # 跳过空单元格
-                try:
-                    val = float(val)
-                    if val > subject_map[col]["full_score"]:
-                        preview.append({
-                            "row": idx + 1, "status": "error",
-                            "reason": f"{col}分数{val}超过满分{subject_map[col]['full_score']}",
-                        })
-                        has_error = True
-                        break
-                    scores[subject_map[col]["id"]] = val
-                except (ValueError, TypeError):
-                    scores[subject_map[col]["id"]] = 0
+        name = str(row.get("姓名", "")) if pd.notna(row.get("姓名")) else ""
 
-        if not has_error:
-            # 确保所有值是有效数字
-            clean_scores = {}
-            for k, v in scores.items():
-                if v is None or (isinstance(v, float) and (math.isnan(v) or math.isinf(v))):
-                    clean_scores[k] = 0
-                else:
-                    clean_scores[k] = float(v)
-            preview.append({
-                "row": idx + 1, "status": "ok",
-                "student_no": student_no,
-                "scores": clean_scores,
-            })
+        # 班级
+        cls_str = str(row.get("班级", "")).strip() if pd.notna(row.get("班级")) else ""
+        class_id = class_by_name.get(cls_str)
+        if not class_id and cls_str:
+            for cn, cid in class_by_name.items():
+                if cls_str == cn or cls_str in cn or cn in cls_str:
+                    class_id = cid; break
+        if not class_id and cls_str:
+            grade_name = cls_str[:2]
+            grade = grades_by_name.get(grade_name)
+            if grade:
+                new_c = Class(name=cls_str, grade_id=grade.id)
+                db.add(new_c); await db.flush()
+                class_id = new_c.id
+                class_by_name[cls_str] = class_id
+        if not class_id: errors.append({"row": idx+2, "reason":f"班级'{cls_str}'无法识别"}); continue
 
-    return {"preview": preview, "headers": [str(c) for c in columns],
-            "subject_cols": [str(c) for c in subject_cols]}
+        # 学生
+        student = student_by_no.get(sno)
+        if not student:
+            student = Student(student_no=sno, name=name or f"学生{sno[-4:]}", class_id=class_id)
+            db.add(student); await db.flush()
+            student_by_no[sno] = student; created_students += 1
+        else:
+            if name: student.name = name
+            student.class_id = class_id
+
+        # 成绩
+        for col in columns:
+            if col not in subject_map: continue
+            val = row[col]
+            if val is None: continue
+            if isinstance(val, float) and (math.isnan(val) or math.isinf(val)): continue
+            try:
+                sv = float(val)
+                sm = subject_map[col]
+                if sv > sm["full_score"]:
+                    errors.append({"row":idx+2,"reason":f"{col}分数{sv}超满分{sm['full_score']}"})
+                    continue
+                result = await db.execute(select(Score).where(and_(
+                    Score.exam_id == exam_id, Score.student_id == student.id,
+                    Score.subject_id == sm["id"])))
+                ex = result.scalar_one_or_none()
+                if ex: ex.total_score = sv
+                else: db.add(Score(exam_id=exam_id, student_id=student.id,
+                                    subject_id=sm["id"], total_score=sv, entered_by=1))
+                created_scores += 1
+            except (ValueError, TypeError): pass
+
+        if (idx + 1) % 50 == 0: await db.flush()
+
+    await db.flush()
+
+    # 排名
+    from app.modules.scores.tasks import calculate_ranks_async
+    await calculate_ranks_async(exam_id)
+
+    return {"created_students": created_students, "created_scores": created_scores,
+            "total_rows": len(df), "errors": errors[:20]}

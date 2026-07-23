@@ -40,7 +40,8 @@ async def batch_import(
 ):
     content = await file.read()
     result = await service.batch_import_excel(db, content, exam_id)
-    return success_response(data=result, message=f"预览{len(result['preview'])}条")
+    return success_response(data=result,
+        message=f"导入完成: {result['total_rows']}行, 新增{result['created_students']}学生, {result['created_scores']}条成绩")
 
 
 @router.get("/class/{class_id}/exam/{exam_id}")
