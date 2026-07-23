@@ -72,7 +72,15 @@ async def create_exam(db: AsyncSession, data, created_by: int) -> Exam:
     db.add(exam)
     await db.flush()
 
-    for subj in data.subjects:
+    # 未指定科目时默认添加全部10科
+    subjects = data.subjects
+    if not subjects:
+        result = await db.execute(select(Subject).order_by(Subject.sort_order))
+        all_subjects = result.scalars().all()
+        subjects = [{"subject_id": s.id, "full_score": 150.0 if s.id in (1, 2, 3) else 100.0}
+                    for s in all_subjects]
+
+    for subj in subjects:
         es = ExamSubject(
             exam_id=exam.id,
             subject_id=subj["subject_id"],

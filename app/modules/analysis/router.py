@@ -48,10 +48,11 @@ async def get_ranks(
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
     class_id: int | None = None,
+    rank_type: str = "total",
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role("admin", "director", "teacher", "student")),
 ):
     rows, total = await service.get_ranks(
-        db, exam_id, page, per_page, class_id
+        db, exam_id, page, per_page, class_id, rank_type
     )
     return paginated_response(items=rows, total=total, page=page, per_page=per_page)

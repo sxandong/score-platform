@@ -84,9 +84,9 @@ async def create_scores(
 
     await db.flush()
 
-    # 触发异步排名计算
-    from app.modules.scores.tasks import calculate_ranks
-    calculate_ranks.delay(exam_id)
+    # 同步计算排名 (生产环境可改为 Celery 异步)
+    from app.modules.scores.tasks import calculate_ranks_async
+    await calculate_ranks_async(exam_id)
 
     return {"count": created, "errors": errors}
 

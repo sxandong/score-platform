@@ -167,13 +167,13 @@ async def grade_overview(
 
 async def get_ranks(
     db: AsyncSession, exam_id: int, page: int = 1, per_page: int = 50,
-    class_id: int | None = None,
+    class_id: int | None = None, rank_type: str = "total",
 ) -> tuple[list[dict], int]:
-    """获取排名列表 (从 rank_snapshots 读取)"""
+    """获取排名列表: rank_type = total | yuwai | top3 | subject"""
     from app.models.audit import RankSnapshot
     conditions = [
         RankSnapshot.exam_id == exam_id,
-        RankSnapshot.rank_type == "total",
+        RankSnapshot.rank_type == rank_type,
     ]
     if class_id:
         conditions.append(Student.class_id == class_id)
@@ -181,7 +181,9 @@ async def get_ranks(
     offset = (page - 1) * per_page
     query = (
         select(RankSnapshot, Student.name, Student.student_no, Class.name)
-        .join(Student).join(Class)
+        .select_from(RankSnapshot)
+        .join(Student, RankSnapshot.student_id == Student.id)
+        .join(Class, Student.class_id == Class.id)
         .where(and_(*conditions))
         .order_by(RankSnapshot.grade_rank.asc())
         .offset(offset).limit(per_page)
@@ -201,8 +203,12 @@ async def get_ranks(
     # 总数
     count_q = (
         select(func.count(RankSnapshot.id))
+        .select_from(RankSnapshot)
+        .join(Student, RankSnapshot.student_id == Student.id)
         .where(and_(*conditions))
     )
+    if class_id:
+        count_q = count_q.join(Class, Student.class_id == Class.id)
     result = await db.execute(count_q)
     total = result.scalar_one()
 
