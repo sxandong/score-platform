@@ -127,66 +127,65 @@ async function searchStudent() {
 }
 
 async function loadStudentScores() {
-  if (!selectedStudentId.value || !examId2.value) return
+  const sid = selectedStudentId.value
+  const eid = examId2.value
+  if (!sid || !eid) return
+
   loading.value = true; studentDetail.value = null
-  const sid = selectedStudentId.value; const eid = examId2.value
 
   try {
-    const ex = exams.value.find((e: any) => e.id === eid)
+    const ex = exams.value.find((e: any) => Number(e.id) === Number(eid))
     examName2.value = ex?.name || String(eid)
 
     // 1. 获取学生该次考试成绩
-    const r1 = await api.get('/analysis/student-trend', { params: { student_id: sid } })
-    const exam = r1.data.find((x: any) => x.exam_id === eid)
+    const r1 = await api.get('/analysis/student-trend', { params: { student_id: Number(sid) } })
+    const exam = r1.data.find((x: any) => Number(x.exam_id) === Number(eid))
     if (!exam) { loading.value = false; return }
 
-    // 2. 加载排名 (缓存避免重复请求)
-    if (!rankCache.value[`yw_${eid}`]) {
+    // 2. 加载排名
+    const numEid = Number(eid); const numSid = Number(sid)
+    const cacheKey = String(numEid)
+    if (!rankCache.value[`yw_${cacheKey}`]) {
       const [rw, rt] = await Promise.all([
-        api.get('/analysis/ranks', { params: { exam_id: eid, rank_type: 'yuwai', per_page: 2000 } }),
-        api.get('/analysis/ranks', { params: { exam_id: eid, rank_type: 'top3', per_page: 2000 } }),
+        api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: 'yuwai', per_page: 2000 } }),
+        api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: 'top3', per_page: 2000 } }),
       ])
-      rankCache.value[`yw_${eid}`] = rw.data
-      rankCache.value[`t3_${eid}`] = rt.data
+      rankCache.value[`yw_${cacheKey}`] = rw.data || []
+      rankCache.value[`t3_${cacheKey}`] = rt.data || []
     }
 
-    // 3. 查找该学生的语数外和7选3排名
-    const ywArr = rankCache.value[`yw_${eid}`]
-    const t3Arr = rankCache.value[`t3_${eid}`]
-    const ywMatch = ywArr.find((x: any) => Number(x.student_id) === Number(sid))
-    const t3Match = t3Arr.find((x: any) => Number(x.student_id) === Number(sid))
-
-    const ywTotal = ywMatch ? Number(ywMatch.total_score) : 0
-    const ywRank = ywMatch ? ywMatch.rank : '-'
-    const t3Total = t3Match ? Number(t3Match.total_score) : 0
-    const t3Rank = t3Match ? t3Match.rank : '-'
+    // 3. 查找排名
+    const ywArr = rankCache.value[`yw_${cacheKey}`] || []
+    const t3Arr = rankCache.value[`t3_${cacheKey}`] || []
+    const ywMatch = ywArr.find((x: any) => Number(x.student_id) === numSid)
+    const t3Match = t3Arr.find((x: any) => Number(x.student_id) === numSid)
 
     // 4. 科目列表
-    const subjList: any[] = []
     const subjNames = ['语文','数学','外语','物理','化学','生物','政治','历史','地理','技术']
-    for (const sn of subjNames) {
-      subjList.push({
-        name: sn,
-        score: exam.subjects[sn] ?? '-',
-        full: ['语文','数学','外语'].includes(sn) ? 150 : 100,
-      })
-    }
+    const subjList = subjNames.map(sn => ({
+      name: sn,
+      score: exam.subjects[sn] ?? '-',
+      full: ['语文','数学','外语'].includes(sn) ? 150 : 100,
+    }))
 
-    // 5. 获取学生信息
-    const st = studentResults.value.find((s: any) => s.id === sid) || {}
+    // 5. 学生信息
+    const st = studentResults.value.find((s: any) => Number(s.id) === numSid) || {}
 
     studentDetail.value = {
       name: st.name || '', student_no: st.student_no || '', class_name: st.class_name || '',
-      total: exam.total || 0,
-      grade_rank: fmt(exam.grade_rank),
-      class_rank: fmt(exam.class_rank),
-      yuwai: ywTotal || 0,
-      yuwai_rank: ywRank,
-      top3: t3Total || 0,
-      top3_rank: t3Rank,
+      total: Number(exam.total) || 0,
+      grade_rank: exam.grade_rank ?? '-',
+      class_rank: exam.class_rank ?? '-',
+      yuwai: ywMatch ? Number(ywMatch.total_score) : 0,
+      yuwai_rank: ywMatch ? ywMatch.rank : '-',
+      top3: t3Match ? Number(t3Match.total_score) : 0,
+      top3_rank: t3Match ? t3Match.rank : '-',
       subjects_list: subjList,
     }
-  } catch (e: any) { console.error('loadStudentScores error:', e) }
-  finally { loading.value = false }
+  } catch (e: any) {
+    console.error('loadStudentScores:', e)
+  } finally {
+    loading.value = false
+  }
 }
 </script>
