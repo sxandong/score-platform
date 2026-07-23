@@ -188,18 +188,23 @@ async def batch_import_excel(
     for es, subj_name in result.all():
         subject_map[subj_name] = {"id": es.subject_id, "full_score": float(es.full_score)}
 
+    import math
     preview = []
     for idx, row in df.iterrows():
-        student_no = str(row.get("学籍号", row.get("学号", row.get("student_no", ""))))
-        if not student_no:
-            preview.append({"row": idx + 1, "status": "error", "reason": "缺少学号"})
+        row_data = row.where(pd.notna(row), None)  # NaN → None
+        student_no = str(row_data.get("学籍号", row_data.get("学号",
+                        row_data.get("student_no", ""))) or "")
+        if not student_no or student_no == "None":
+            preview.append({"row": idx + 2, "status": "error", "reason": "缺少学籍号"})
             continue
 
         scores = {}
         has_error = False
         for col in subject_cols:
             if col in subject_map:
-                val = row[col]
+                val = row_data[col]
+                if val is None or (isinstance(val, float) and math.isnan(val)):
+                    continue  # 跳过空单元格
                 try:
                     val = float(val)
                     if val > subject_map[col]["full_score"]:
@@ -214,10 +219,18 @@ async def batch_import_excel(
                     scores[subject_map[col]["id"]] = 0
 
         if not has_error:
+            # 确保所有值是有效数字
+            clean_scores = {}
+            for k, v in scores.items():
+                if v is None or (isinstance(v, float) and (math.isnan(v) or math.isinf(v))):
+                    clean_scores[k] = 0
+                else:
+                    clean_scores[k] = float(v)
             preview.append({
                 "row": idx + 1, "status": "ok",
                 "student_no": student_no,
-                "scores": scores,
+                "scores": clean_scores,
             })
 
-    return {"preview": preview, "headers": columns, "subject_cols": subject_cols}
+    return {"preview": preview, "headers": [str(c) for c in columns],
+            "subject_cols": [str(c) for c in subject_cols]}
