@@ -1,0 +1,105 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/Login.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/',
+      component: () => import('@/layouts/DefaultLayout.vue'),
+      redirect: '/dashboard',
+      children: [
+        {
+          path: 'dashboard',
+          name: 'dashboard',
+          component: () => import('@/views/dashboard/AdminDashboard.vue'),
+          meta: { title: '仪表盘' },
+        },
+        {
+          path: 'users',
+          name: 'users',
+          component: () => import('@/views/system/UserManage.vue'),
+          meta: { title: '用户管理', roles: ['admin'] },
+        },
+        {
+          path: 'exams',
+          name: 'exams',
+          component: () => import('@/views/system/ExamManage.vue'),
+          meta: { title: '考试管理', roles: ['admin', 'director', 'teacher'] },
+        },
+        {
+          path: 'scores/entry',
+          name: 'score-entry',
+          component: () => import('@/views/scores/ScoreEntry.vue'),
+          meta: { title: '成绩录入', roles: ['admin', 'teacher'] },
+        },
+        {
+          path: 'scores/import',
+          name: 'score-import',
+          component: () => import('@/views/scores/BatchImport.vue'),
+          meta: { title: '批量导入', roles: ['admin', 'teacher'] },
+        },
+        {
+          path: 'scores/query',
+          name: 'score-query',
+          component: () => import('@/views/scores/ScoreQuery.vue'),
+          meta: { title: '成绩查询', roles: ['admin', 'director', 'teacher'] },
+        },
+        {
+          path: 'analysis/class-compare',
+          name: 'class-compare',
+          component: () => import('@/views/analysis/ClassCompare.vue'),
+          meta: { title: '班级对比', roles: ['admin', 'director', 'teacher'] },
+        },
+        {
+          path: 'analysis/student-trend',
+          name: 'student-trend',
+          component: () => import('@/views/analysis/StudentTrend.vue'),
+          meta: { title: '成绩趋势' },
+        },
+        {
+          path: 'reports',
+          name: 'reports',
+          component: () => import('@/views/reports/ReportExport.vue'),
+          meta: { title: '报表导出', roles: ['admin', 'director', 'teacher'] },
+        },
+      ],
+    },
+    {
+      path: '/student',
+      component: () => import('@/layouts/StudentLayout.vue'),
+      children: [
+        {
+          path: '',
+          name: 'student-dashboard',
+          component: () => import('@/views/dashboard/StudentDashboard.vue'),
+          meta: { title: '我的成绩' },
+        },
+      ],
+    },
+  ],
+})
+
+router.beforeEach((to, _from, next) => {
+  const authStore = useAuthStore()
+  if (to.meta.public) {
+    if (authStore.isLoggedIn) return next('/dashboard')
+    return next()
+  }
+  if (!authStore.isLoggedIn) return next('/login')
+  if (to.meta.roles) {
+    const required = to.meta.roles as string[]
+    if (!required.some((r) => authStore.hasRole(r))) {
+      return next('/dashboard')
+    }
+  }
+  next()
+})
+
+export default router
