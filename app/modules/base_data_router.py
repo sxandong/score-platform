@@ -403,7 +403,7 @@ async def batch_import_students(
         class_by_name[c.name] = c.id
         class_by_id[c.id] = c.id
 
-    created, skipped, errors = 0, 0, []
+    created, updated, skipped, errors = 0, 0, 0, []
     for idx, row in df.iterrows():
         sno = str(row.get("学籍号", row.get("学号", row.get("student_no", "")))).strip()
         name = str(row.get("姓名", row.get("name", ""))).strip()
@@ -411,7 +411,7 @@ async def batch_import_students(
             errors.append({"row": idx + 2, "reason": "学籍号或姓名为空"})
             skipped += 1; continue
 
-        # 识别班级: 优先班级名称，次选班级ID
+        # 识别班级
         cls_val = row.get("班级", row.get("班级名称", row.get("class_name",
                    row.get("班级ID", row.get("class_id", "")))))
         cls_str = str(cls_val).strip() if pd.notna(cls_val) else ""
@@ -424,17 +424,21 @@ async def batch_import_students(
             errors.append({"row": idx + 2, "reason": f"班级'{cls_str}'不存在"})
             skipped += 1; continue
 
+        # 已存在则更新，不存在则新增
         result = await db.execute(select(Student).where(Student.student_no == sno))
-        if result.scalar_one_or_none():
-            skipped += 1; continue
-
-        db.add(Student(student_no=sno, name=name, class_id=cid))
-        created += 1
+        existing = result.scalar_one_or_none()
+        if existing:
+            existing.name = name
+            existing.class_id = cid
+            updated += 1
+        else:
+            db.add(Student(student_no=sno, name=name, class_id=cid))
+            created += 1
 
     await db.flush()
     return success_response(data={
-        "created": created, "skipped": skipped, "errors": errors[:10],
-    }, message=f"导入完成: 新增{created}, 跳过{skipped}")
+        "created": created, "updated": updated, "skipped": skipped, "errors": errors[:10],
+    }, message=f"导入完成: 新增{created}, 更新{updated}, 跳过{skipped}")
 
 
 @router.post("/students/promote")
