@@ -35,4 +35,16 @@ def create_app() -> FastAPI:
     from app.modules.users.router import router as users_router
     app.include_router(users_router)
 
+    from app.modules.exams.router import router as exams_router
+    app.include_router(exams_router)
+
+    from app.modules.scores.router import router as scores_router
+    app.include_router(scores_router)
+
+    from app.modules.analysis.router import router as analysis_router
+    app.include_router(analysis_router)
+
+    from app.modules.reports.router import router as reports_router
+    app.include_router(reports_router)
+
     return app
