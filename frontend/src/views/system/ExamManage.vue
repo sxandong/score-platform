@@ -17,7 +17,7 @@
         <template #default="{ row }">
           <el-button size="small" v-if="row.status!=='locked'" @click="lockExam(row.id)">锁定</el-button>
           <el-button size="small" type="primary" @click="$router.push(`/scores/entry?exam_id=${row.id}`)">录成绩</el-button>
-          <el-popconfirm title="确定删除此考试及所有关联成绩吗？" @confirm="deleteExam(row.id)">
+          <el-popconfirm :title="deleteMsg(row)" @confirm="deleteExam(row.id)">
             <template #reference>
               <el-button size="small" type="danger" :disabled="row.status==='locked'">删除</el-button>
             </template>
@@ -68,6 +68,19 @@ async function createExam() {
 async function lockExam(id: number) {
   try { await api.put(`/exams/${id}/lock`); ElMessage.success('已锁定'); loadExams() }
   catch (e: any) { ElMessage.error(e.message) }
+}
+
+const examStats = ref<Record<number, number>>({})
+
+async function deleteMsg(row: any): Promise<string> {
+  try {
+    const r = await api.get(`/exams/${row.id}/stats`)
+    const cnt = r.data.scores || 0
+    examStats.value[row.id] = cnt
+    return cnt > 0
+      ? `此考试已导入 ${cnt} 条成绩，删除考试将同时删除全部成绩数据，确定删除？`
+      : '确定删除此考试？'
+  } catch { return '确定删除此考试？' }
 }
 
 async function deleteExam(id: number) {

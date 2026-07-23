@@ -61,6 +61,22 @@ async def update_exam(
     return success_response(data=service._exam_to_dict(exam), message="考试更新成功")
 
 
+@router.get("/{exam_id}/stats")
+async def exam_stats(
+    exam_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin", "director", "teacher")),
+):
+    """检查考试关联数据量"""
+    from sqlalchemy import text
+    result = await db.execute(text(
+        "SELECT (SELECT COUNT(*) FROM scores WHERE exam_id=:eid) as scores,"
+        " (SELECT COUNT(*) FROM exam_subjects WHERE exam_id=:eid) as subjects"
+    ), {"eid": exam_id})
+    row = result.fetchone()
+    return success_response(data={"scores": row[0], "subjects": row[1]})
+
+
 @router.delete("/{exam_id}")
 async def delete_exam(
     exam_id: int,
