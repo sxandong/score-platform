@@ -26,6 +26,24 @@ class ClassCreate(BaseModel):
     grade_id: int
     head_teacher_id: int | None = None
 
+class ClassBatchCreate(BaseModel):
+    grade_id: int
+    names: list[str]
+
+class ClassAutoGenerate(BaseModel):
+    grade_id: int
+    count: int = Field(..., ge=1, le=30)
+
+class BatchDelete(BaseModel):
+    ids: list[int]
+
+class StudentPromote(BaseModel):
+    from_grade_id: int
+    target_grade_id: int
+
+class StudentReassign(BaseModel):
+    class_assignments: list[dict]  # [{student_id, new_class_id}]
+
 class StudentCreate(BaseModel):
     student_no: str = Field(..., min_length=1, max_length=20)
     name: str = Field(..., min_length=1, max_length=50)
@@ -75,6 +93,23 @@ async def update_grade(
     g.name = req.name; g.stage = req.stage; await db.flush()
     return success_response(data={"id": g.id, "name": g.name}, message="年级更新成功")
 
+@router.delete("/grades/batch-delete")
+async def batch_delete_grades(
+    req: BatchDelete,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    from sqlalchemy import delete as sql_delete
+    for gid in req.ids:
+        await db.execute(sql_delete(Student).where(
+            Student.class_id.in_(select(Class.id).where(Class.grade_id == gid))
+        ))
+        await db.execute(sql_delete(Class).where(Class.grade_id == gid))
+    await db.execute(sql_delete(Grade).where(Grade.id.in_(req.ids)))
+    await db.commit()
+    return success_response(message=f"已删除{len(req.ids)}个年级")
+
+
 @router.delete("/grades/{grade_id}")
 async def delete_grade(
     grade_id: int,
@@ -86,6 +121,39 @@ async def delete_grade(
     if not g: raise NotFoundException("年级不存在")
     await db.delete(g); await db.flush()
     return success_response(message="年级已删除")
+
+@router.delete("/grades/batch-delete")
+async def batch_delete_grades(
+    req: BatchDelete,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    from sqlalchemy import delete as sql_delete
+    for gid in req.ids:
+        await db.execute(sql_delete(Class).where(Class.grade_id == gid))
+    await db.execute(sql_delete(Grade).where(Grade.id.in_(req.ids)))
+    await db.commit()
+    return success_response(message=f"已删除{len(req.ids)}个年级及其班级")
+
+
+@router.delete("/grades/batch-delete")
+async def batch_delete_grades(
+    req: BatchDelete,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    from sqlalchemy import delete as sql_delete
+    for gid in req.ids:
+        await db.execute(sql_delete(Student).where(
+            Student.class_id.in_(
+                select(Class.id).where(Class.grade_id == gid)
+            )
+        ))
+        await db.execute(sql_delete(Class).where(Class.grade_id == gid))
+    await db.execute(sql_delete(Grade).where(Grade.id.in_(req.ids)))
+    await db.commit()
+    return success_response(message=f"已删除{len(req.ids)}个年级及关联班级学生")
+
 
 # ======================= 班级 =======================
 
@@ -115,6 +183,22 @@ async def create_class(
     db.add(c); await db.flush()
     return success_response(data={"id": c.id, "name": c.name}, message="班级创建成功")
 
+@router.post("/classes/batch")
+async def batch_create_classes(
+    req: ClassBatchCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    created, skipped = 0, 0
+    for name in req.names:
+        name = name.strip()
+        if not name: continue
+        db.add(Class(name=name, grade_id=req.grade_id))
+        created += 1
+    await db.flush()
+    return success_response(data={"created": created}, message=f"批量创建完成: 新增{created}个班级")
+
+
 @router.put("/classes/{class_id}")
 async def update_class(
     class_id: int, req: ClassCreate,
@@ -128,6 +212,20 @@ async def update_class(
     c.head_teacher_id = req.head_teacher_id; await db.flush()
     return success_response(data={"id": c.id, "name": c.name}, message="班级更新成功")
 
+@router.delete("/classes/batch-delete")
+async def batch_delete_classes(
+    req: BatchDelete,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    from sqlalchemy import delete as sql_delete
+    for cid in req.ids:
+        await db.execute(sql_delete(Student).where(Student.class_id == cid))
+    await db.execute(sql_delete(Class).where(Class.id.in_(req.ids)))
+    await db.commit()
+    return success_response(message=f"已删除{len(req.ids)}个班级及关联学生")
+
+
 @router.delete("/classes/{class_id}")
 async def delete_class(
     class_id: int,
@@ -139,6 +237,49 @@ async def delete_class(
     if not c: raise NotFoundException("班级不存在")
     await db.delete(c); await db.flush()
     return success_response(message="班级已删除")
+
+
+@router.post("/classes/auto-generate")
+async def auto_generate_classes(
+    req: ClassAutoGenerate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    """按数量自动生成班级: 高三/15 → 高三(1)班~高三(15)班"""
+    result = await db.execute(select(Grade).where(Grade.id == req.grade_id))
+    grade = result.scalar_one_or_none()
+    if not grade: raise NotFoundException("年级不存在")
+    result = await db.execute(
+        select(func.count(Class.id)).where(Class.grade_id == req.grade_id))
+    existing = result.scalar_one()
+    created = 0
+    for i in range(existing + 1, existing + req.count + 1):
+        db.add(Class(name=f"{grade.name}({i})班", grade_id=req.grade_id))
+        created += 1
+    await db.flush()
+    return success_response(data={"created": created}, message=f"自动生成{created}个班级")
+
+
+@router.post("/classes/batch-excel")
+async def batch_import_classes(
+    grade_id: int | None = None,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    content = await file.read()
+    try: df = pd.read_excel(BytesIO(content))
+    except Exception as e: raise ValidationException(f"Excel解析失败: {e}")
+    created, skipped = 0, 0
+    for _, row in df.iterrows():
+        name = str(row.get("班级名称", row.get("name", ""))).strip()
+        gid = grade_id or int(row.get("年级ID", row.get("grade_id", 0)))
+        if not name or not gid: skipped += 1; continue
+        db.add(Class(name=name, grade_id=gid)); created += 1
+    await db.flush()
+    return success_response(data={"created": created, "skipped": skipped},
+                            message=f"导入完成: 新增{created}, 跳过{skipped}")
+
 
 # ======================= 学生 =======================
 
@@ -211,6 +352,18 @@ async def update_student(
     await db.flush()
     return success_response(data={"id": s.id, "name": s.name}, message="学生更新成功")
 
+@router.delete("/students/batch-delete")
+async def batch_delete_students(
+    req: BatchDelete,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    from sqlalchemy import delete as sql_delete
+    await db.execute(sql_delete(Student).where(Student.id.in_(req.ids)))
+    await db.commit()
+    return success_response(message=f"已删除{len(req.ids)}个学生")
+
+
 @router.delete("/students/{student_id}")
 async def delete_student(
     student_id: int,
@@ -261,3 +414,57 @@ async def batch_import_students(
     return success_response(data={
         "created": created, "skipped": skipped, "errors": errors[:10],
     }, message=f"导入完成: 新增{created}, 跳过{skipped}")
+
+
+@router.post("/students/promote")
+async def promote_students(
+    req: StudentPromote,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    """升年级: 将该年级所有学生移到目标年级对应班级"""
+    from sqlalchemy import text
+    # 获取原年级班级→目标年级班级的映射 (按班级名称)
+    result = await db.execute(
+        select(Class).where(Class.grade_id.in_([req.from_grade_id, req.target_grade_id])))
+    classes = list(result.scalars().all())
+
+    src_classes = [c for c in classes if c.grade_id == req.from_grade_id]
+    tgt_classes = {c.name: c.id for c in classes if c.grade_id == req.target_grade_id}
+
+    migrated = 0
+    for sc in src_classes:
+        tgt_id = tgt_classes.get(sc.name)
+        if tgt_id is None: continue
+        result = await db.execute(
+            select(func.count(Student.id)).where(Student.class_id == sc.id))
+        count = result.scalar_one()
+        if count == 0: continue
+        await db.execute(text(
+            "UPDATE students SET class_id = :tgt WHERE class_id = :src"
+        ), {"tgt": tgt_id, "src": sc.id})
+        migrated += count
+
+    await db.commit()
+    return success_response(data={"migrated": migrated}, message=f"升年级完成: {migrated}名学生")
+
+
+@router.post("/students/reassign")
+async def reassign_students(
+    req: StudentReassign,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    """批量重新分班: [{student_id, new_class_id}, ...]"""
+    from sqlalchemy import text
+    updated = 0
+    for item in req.class_assignments:
+        sid = item.get("student_id")
+        cid = item.get("new_class_id")
+        if sid and cid:
+            await db.execute(text(
+                "UPDATE students SET class_id = :cid WHERE id = :sid"
+            ), {"cid": cid, "sid": sid})
+            updated += 1
+    await db.commit()
+    return success_response(data={"updated": updated}, message=f"重新分班完成: {updated}名学生")
