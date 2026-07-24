@@ -159,10 +159,15 @@ async def batch_import_excel(
 
     for idx, row in df.iterrows():
         sno_val = row.get("学籍号")
-        if sno_val is None: errors.append({"row": idx+2, "reason":"缺少学籍号"}); continue
-        sno = str(int(sno_val)) if isinstance(sno_val, float) else str(sno_val)
-        sno = sno.rstrip('.0')
-        if not sno: errors.append({"row": idx+2, "reason":"学籍号为空"}); continue
+        if sno_val is None or (isinstance(sno_val, float) and math.isnan(sno_val)):
+            errors.append({"row": idx+2, "reason":"缺少学籍号"}); continue
+        # 12位学籍号: 避免科学计数法或精度丢失, 格式化为12位字符串
+        if isinstance(sno_val, float):
+            sno = str(int(sno_val)).zfill(12)
+        else:
+            sno = str(sno_val).strip().zfill(12)
+        if not sno or sno == '0'*12:
+            errors.append({"row": idx+2, "reason":"学籍号为空"}); continue
 
         name = str(row.get("姓名", "")) if pd.notna(row.get("姓名")) else ""
 

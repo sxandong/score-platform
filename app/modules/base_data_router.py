@@ -405,7 +405,11 @@ async def batch_import_students(
 
     created, updated, skipped, errors = 0, 0, 0, []
     for idx, row in df.iterrows():
-        sno = str(row.get("学籍号", row.get("学号", row.get("student_no", "")))).strip()
+        sno_val = row.get("学籍号", row.get("学号", row.get("student_no", "")))
+        if isinstance(sno_val, float):
+            sno = str(int(sno_val)).zfill(12)
+        else:
+            sno = str(sno_val).strip().zfill(12)
         name = str(row.get("姓名", row.get("name", ""))).strip()
         if not sno or not name:
             errors.append({"row": idx + 2, "reason": "学籍号或姓名为空"})

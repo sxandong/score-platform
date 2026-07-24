@@ -108,6 +108,9 @@ async def seed_subjects(db: AsyncSession) -> None:
     await db.execute(text(
         "DELETE FROM subjects WHERE name='英语' AND EXISTS (SELECT 1 FROM subjects s2 WHERE s2.name='外语')"))
     await db.execute(text("UPDATE subjects SET name='外语' WHERE name='英语' AND NOT EXISTS (SELECT 1 FROM subjects s2 WHERE s2.name='外语')"))
+    # 修复11位学籍号 → 12位 (补0)
+    await db.execute(text(
+        "UPDATE students SET student_no = '0' || student_no WHERE length(student_no)=11"))
     for i, name in enumerate(DEFAULT_SUBJECTS):
         result = await db.execute(select(Subject).where(Subject.name == name))
         if result.scalar_one_or_none() is None:
