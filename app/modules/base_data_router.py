@@ -327,6 +327,7 @@ async def list_students(
         "id": s.id, "student_no": s.student_no, "name": s.name,
         "class_id": s.class_id, "class_name": class_map.get(s.class_id, ""),
         "status": s.status, "user_id": s.user_id,
+        "electives": s.electives or "",
     } for s in students], total=total, page=page, per_page=per_page)
 
 @router.post("/students")
@@ -388,12 +389,15 @@ async def batch_import_students(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role("admin")),
 ):
-    """Excel批量导入: 列=学籍号,姓名,班级(名称或ID)"""
+    """Excel导入: 列=学籍号,姓名,班级[,政治,历史,地理,物理,化学,生物,技术(1/0)]"""
     content = await file.read()
     try:
         df = pd.read_excel(BytesIO(content))
     except Exception as e:
         raise ValidationException(f"Excel解析失败: {e}")
+
+    # 7选3科目列表
+    ELEC_SUBJS = ['政治', '历史', '地理', '物理', '化学', '生物', '技术']
 
     # 预加载班级映射 (名称→ID)
     result = await db.execute(select(Class))
@@ -428,15 +432,26 @@ async def batch_import_students(
             errors.append({"row": idx + 2, "reason": f"班级'{cls_str}'不存在"})
             skipped += 1; continue
 
+        # 解析7选3选科
+        selected = []
+        for subj in ELEC_SUBJS:
+            val = row.get(subj)
+            if val is not None and int(val) == 1:
+                selected.append(subj)
+        electives_str = ','.join(selected)
+
         # 已存在则更新，不存在则新增
         result = await db.execute(select(Student).where(Student.student_no == sno))
         existing = result.scalar_one_or_none()
         if existing:
             existing.name = name
             existing.class_id = cid
+            if electives_str:
+                existing.electives = electives_str
             updated += 1
         else:
-            db.add(Student(student_no=sno, name=name, class_id=cid))
+            db.add(Student(student_no=sno, name=name, class_id=cid,
+                          electives=electives_str))
             created += 1
 
     await db.flush()

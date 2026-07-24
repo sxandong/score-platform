@@ -111,6 +111,11 @@ async def seed_subjects(db: AsyncSession) -> None:
     # 修复11位学籍号 → 12位 (补0)
     await db.execute(text(
         "UPDATE students SET student_no = '0' || student_no WHERE length(student_no)=11"))
+    # 添加 electives 列 (SQLite 用 ALTER TABLE ADD COLUMN)
+    try:
+        await db.execute(text("ALTER TABLE students ADD COLUMN electives VARCHAR(50) DEFAULT ''"))
+    except Exception:
+        pass  # 列已存在
     for i, name in enumerate(DEFAULT_SUBJECTS):
         result = await db.execute(select(Subject).where(Subject.name == name))
         if result.scalar_one_or_none() is None:

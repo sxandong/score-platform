@@ -79,12 +79,20 @@ async def get_class_scores(db: AsyncSession, exam_id: int, class_id: int) -> lis
             student_scores[s.student_id]["yws"][subj_name] = score_val
             student_scores[s.student_id]["yws_total"] += score_val
 
-    # 计算每个学生的7选3
+    # 计算每个学生的7选3 (按选科或自动取前3)
     for sid, data in student_scores.items():
-        other = {k: v for k, v in data["subjects"].items() if k not in YWS}
-        top3_items = sorted(other.items(), key=lambda x: x[1], reverse=True)[:3]
-        data["top3"] = dict(top3_items)
-        data["top3_total"] = sum(v for _, v in top3_items)
+        st = students.get(sid)
+        electives_str = st.electives if st and st.electives else ""
+        if electives_str:
+            selected = [s.strip() for s in electives_str.split(",") if s.strip()]
+            top3_items = [(k, data["subjects"].get(k, 0)) for k in selected]
+            data["top3"] = {k: v for k, v in top3_items}
+            data["top3_total"] = sum(v for _, v in top3_items)
+        else:
+            other = {k: v for k, v in data["subjects"].items() if k not in YWS}
+            top3_items = sorted(other.items(), key=lambda x: x[1], reverse=True)[:3]
+            data["top3"] = dict(top3_items)
+            data["top3_total"] = sum(v for _, v in top3_items)
 
     # 查询语数外和7选3排名
     from app.models.audit import RankSnapshot

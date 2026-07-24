@@ -36,6 +36,7 @@ class Student(Base):
     name = Column(String(50), nullable=False)
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
     status = Column(String(15), default="enrolled")
+    electives = Column(String(50), default="")  # 选科, 如 "物理,化学,生物"
 
     class_ = relationship("Class", back_populates="students")
     user = relationship("User")

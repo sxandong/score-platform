@@ -108,12 +108,22 @@ async def student_trend(
             exam_data[eid]["yws"][sn] = score_val
             exam_data[eid]["yws_total"] += score_val
 
-    # 计算每个考试的7选3
+    # 计算每个考试的7选3 (按选科或自动取前3)
+    from app.models.base_data import Student as StuModel
+    result = await db.execute(select(StuModel).where(StuModel.id == student_id))
+    stu = result.scalar_one_or_none()
+    electives_str = stu.electives if stu and stu.electives else ""
     for eid, data in exam_data.items():
-        other = {k: v for k, v in data["subjects"].items() if k not in YWS}
-        top3_items = sorted(other.items(), key=lambda x: x[1], reverse=True)[:3]
-        data["top3"] = dict(top3_items)
-        data["top3_total"] = sum(v for _, v in top3_items)
+        if electives_str:
+            selected = [s.strip() for s in electives_str.split(",") if s.strip()]
+            top3_items = [(k, data["subjects"].get(k, 0)) for k in selected]
+            data["top3"] = {k: v for k, v in top3_items}
+            data["top3_total"] = sum(v for _, v in top3_items)
+        else:
+            other = {k: v for k, v in data["subjects"].items() if k not in YWS}
+            top3_items = sorted(other.items(), key=lambda x: x[1], reverse=True)[:3]
+            data["top3"] = dict(top3_items)
+            data["top3_total"] = sum(v for _, v in top3_items)
 
     return list(exam_data.values())
 
