@@ -92,7 +92,7 @@
     <el-row :gutter="12" v-if="mode==='student' && !examId2 && scoreData.length > 1" style="margin-top:16px">
       <el-col :span="12" v-for="(sn, i) in chartSubjs" :key="sn" style="margin-bottom:12px">
         <el-card><template #header><span style="font-weight:bold">{{ sn }} 趋势</span></template>
-          <div :ref="(el:any) => { if(el) subjRefs[i] = el }" style="width:100%;height:300px"></div>
+          <div :ref="(el:any) => setSubjRef(i, el)" style="width:100%;height:300px"></div>
         </el-card>
       </el-col>
     </el-row>
@@ -127,7 +127,8 @@ const studentResults = ref<any[]>([]); const selectedStudentId = ref<number | nu
 const scoreData = ref<any[]>([]); const studentDetail = ref<any>(null)
 const loading = ref(false)
 const rankCache = ref<Record<string, any[]>>({})
-const subjRefs = ref<any[]>([])
+const subjRefs = ref<Record<number, any>>({})
+function setSubjRef(i: number, el: any) { if (el) subjRefs.value[i] = el }
 const chartSubjs = computed(() => {
   const data = scoreData.value.length ? scoreData.value : (studentDetail.value ? [studentDetail.value] : [])
   const s = new Set<string>()
