@@ -155,8 +155,9 @@ function _makeRankOption(data: any[], rankKey: string, title: string) {
   }
 }
 
-watch([scoreData, mode], async () => {
+watch([scoreData, mode, chartSubjs], async () => {
   await nextTick()
+  await new Promise(r => setTimeout(r, 100))  // 等 v-for 渲染完成
   chartInstances.forEach(c => c.dispose()); chartInstances.length = 0
   if (mode.value !== 'student' || examId2.value || scoreData.value.length <= 1) return
 
