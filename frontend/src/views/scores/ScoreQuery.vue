@@ -231,7 +231,14 @@ function drawCharts(data: any[], numSid: number) {
     return (n > 0 && Number.isFinite(n)) ? n : null
   }
 
-  function makeRankChart(domId: string, rankKey: string, title: string) {
+  // 获取每次考试的总人数(从yw cache)
+  const totalCounts = sorted.map((r:any) => {
+    const cache = rankCache.value[`yw_${r.exam_id}`] || []
+    return cache.length || 1
+  })
+  const maxTotal = Math.max(...totalCounts, 1)
+
+  function makeRankChart(domId: string, rankKey: string, title: string, yMax?: number) {
     const el = document.getElementById(domId); if (!el) return
     const vals = sorted.map((r:any) => toNum(r[rankKey]))
     if (vals.every(v => v === null)) return
@@ -240,33 +247,45 @@ function drawCharts(data: any[], numSid: number) {
       tooltip: { trigger: 'axis' },
       grid: { left: 55, right: 20, top: 20, bottom: 25 },
       xAxis: { type: 'category', data: labels },
-      yAxis: { type: 'value', name: '排名', inverse: true, min: 1 },
+      yAxis: { type: 'value', name: '排名', inverse: true, min: 1, max: yMax || maxTotal },
       series: [{ name: title, type: 'line', data: vals, smooth: true,
         markLine: { data: [{ type: 'average', name: '平均' }] } }],
     }, true)
   }
 
+  // 语文/数学/外语/总分/语数外/7选3 — Y轴=总人数
+  const ALL_CHART = ['语文','数学','外语']
   chartSubjs.value.forEach(sn => {
     const el = document.getElementById('chart-'+sn); if (!el) return
+    const isAllSubj = ALL_CHART.includes(sn)
     const ranks = sorted.map((r:any) => {
       const cache = rankCache.value[`subj_${r.exam_id}`] || []
       const f = cache.find((x:any) => x.subject_name === sn && Number(x.student_id) === numSid)
       return f ? toNum(f.rank) : null
     })
     if (ranks.every(v => v === null)) return
+    // 选考科目取该科实际参考人数作为Y轴上限
+    let yMax = maxTotal
+    if (!isAllSubj) {
+      const subjCounts = sorted.map((r:any) => {
+        const cache = rankCache.value[`subj_${r.exam_id}`] || []
+        return cache.filter((x:any) => x.subject_name === sn).length || 1
+      })
+      yMax = Math.max(...subjCounts, 1)
+    }
     const inst = echarts.getInstanceByDom(el) || echarts.init(el)
     inst.setOption({
       tooltip: { trigger: 'axis' },
       grid: { left: 55, right: 20, top: 20, bottom: 25 },
       xAxis: { type: 'category', data: labels },
-      yAxis: { type: 'value', name: '排名', inverse: true, min: 1 },
+      yAxis: { type: 'value', name: '排名', inverse: true, min: 1, max: yMax },
       series: [{ name: sn+'排名', type: 'line', data: ranks, smooth: true,
         markLine: { data: [{ type: 'average', name: '平均排名' }] } }],
     }, true)
   })
 
-  makeRankChart('chart-total', 'grade_rank', '总分排名')
-  makeRankChart('chart-yuwai', 'yuwai_rank', '语数外排名')
-  makeRankChart('chart-top3', 'top3_rank', '7选3排名')
+  makeRankChart('chart-total', 'grade_rank', '总分排名', maxTotal)
+  makeRankChart('chart-yuwai', 'yuwai_rank', '语数外排名', maxTotal)
+  makeRankChart('chart-top3', 'top3_rank', '7选3排名', maxTotal)
 }
 </script>
