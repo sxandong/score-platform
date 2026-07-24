@@ -19,7 +19,7 @@
 
     <!-- 按学生 -->
     <el-form :inline="true" v-if="mode==='student'">
-      <el-form-item label="考试"><el-select v-model="examId2" placeholder="必选" style="width:250px" @change="onExamChange">
+      <el-form-item label="考试"><el-select v-model="examId2" placeholder="可选，不选显示全部" clearable style="width:250px" @change="onExamChange">
         <el-option v-for="e in exams" :key="e.id" :label="e.name" :value="e.id" /></el-select>
       </el-form-item>
       <el-form-item label="学籍号/姓名"><el-input v-model="studentKeyword" placeholder="搜索" style="width:220px"
@@ -53,18 +53,28 @@
     </el-table>
     </div>
 
-    <!-- 学生成绩表格 (与班级格式一致) -->
-    <div v-if="mode==='student' && studentDetail" v-loading="loading" style="margin-top:16px">
-      <el-alert type="info" :closable="false" show-icon style="margin-bottom:12px">
+    <!-- 单个学生结果 (选考试时单行, 未选时多行) -->
+    <div v-if="mode==='student' && (studentDetail || scoreData.length)" v-loading="loading" style="margin-top:16px">
+      <el-alert type="info" :closable="false" show-icon style="margin-bottom:12px" v-if="examId2 && studentDetail">
         <template #title>
-          {{ studentDetail.name }} ({{ studentDetail.student_no }}) — {{ studentDetail.class_name }} — {{ examName2 }}
+          {{ studentDetail.name }} ({{ studentDetail.student_no }})
+          <span v-if="studentDetail.class_name"> — {{ studentDetail.class_name }}</span>
+          — {{ examName2 }}
         </template>
       </el-alert>
+      <el-alert type="info" :closable="false" show-icon style="margin-bottom:12px" v-if="!examId2 && scoreData.length">
+        <template #title>
+          {{ scoreData[0]?.name }} ({{ scoreData[0]?.student_no }}) — 历次考试成绩
+        </template>
+      </el-alert>
+
       <div style="overflow-x:auto;width:100%">
-      <el-table :data="[studentDetail]" border stripe>
-        <el-table-column prop="student_no" label="学籍号" width="130" />
-        <el-table-column prop="name" label="姓名" width="90" />
-        <el-table-column v-for="sn in studentSubjs" :key="sn" :label="sn" width="72">
+      <el-table :data="examId2 && studentDetail ? [studentDetail] : scoreData" border stripe>
+        <el-table-column v-if="!examId2" prop="exam_name" label="考试" width="200" fixed />
+        <el-table-column v-if="!examId2" prop="exam_date" label="日期" width="110" />
+        <el-table-column prop="student_no" label="学籍号" width="130" v-if="examId2" />
+        <el-table-column prop="name" label="姓名" width="90" v-if="examId2" />
+        <el-table-column v-for="sn in (examId2 ? studentSubjs : visibleSubjs)" :key="sn" :label="sn" width="72">
           <template #default="{row}">{{ row.subjects[sn] }}</template>
         </el-table-column>
         <el-table-column prop="total" label="总分" width="80" />
@@ -79,7 +89,7 @@
     </div>
 
     <el-empty v-if="!scoreData.length && !studentDetail"
-      :description="mode==='class' ? '请选择考试和班级后查询' : '请选择考试并搜索学生'" />
+      :description="mode==='class' ? '请选择考试和班级后查询' : '搜索学生即可查看成绩'" />
   </div>
 </template>
 
@@ -105,9 +115,10 @@ onMounted(async () => {
 
 const ALL_SUBJS = ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术']
 
-// 班级查询中只显示有数据的科目列
+// 表格中只显示有数据的科目列
 const visibleSubjs = computed(() => {
-  return ALL_SUBJS.filter(sn => scoreData.value.some((row: any) => row.subjects?.[sn] != null))
+  const data = scoreData.value.length ? scoreData.value : (studentDetail.value ? [studentDetail.value] : [])
+  return ALL_SUBJS.filter(sn => data.some((row: any) => row.subjects?.[sn] != null))
 })
 // 学生查询中只显示有数据的科目列
 const studentSubjs = computed(() => {
@@ -143,55 +154,68 @@ async function searchStudent() {
 async function loadStudentScores() {
   const sid = selectedStudentId.value
   const eid = examId2.value
-  if (!sid || !eid) return
+  if (!sid) return
 
-  loading.value = true; studentDetail.value = null
+  loading.value = true; studentDetail.value = null; scoreData.value = []
 
   try {
-    const ex = exams.value.find((e: any) => Number(e.id) === Number(eid))
-    examName2.value = ex?.name || String(eid)
-
-    // 1. 获取学生该次考试成绩
-    const r1 = await api.get('/analysis/student-trend', { params: { student_id: Number(sid) } })
-    const exam = r1.data.find((x: any) => Number(x.exam_id) === Number(eid))
-    if (!exam) { loading.value = false; return }
-
-    // 2. 加载排名
-    const numEid = Number(eid); const numSid = Number(sid)
-    const cacheKey = String(numEid)
-    if (!rankCache.value[`yw_${cacheKey}`]) {
-      const [rw, rt] = await Promise.all([
-        api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: 'yuwai', per_page: 2000 } }),
-        api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: 'top3', per_page: 2000 } }),
-      ])
-      rankCache.value[`yw_${cacheKey}`] = rw.data || []
-      rankCache.value[`t3_${cacheKey}`] = rt.data || []
-    }
-
-    // 3. 查找排名
-    const ywArr = rankCache.value[`yw_${cacheKey}`] || []
-    const t3Arr = rankCache.value[`t3_${cacheKey}`] || []
-    const ywMatch = ywArr.find((x: any) => Number(x.student_id) === numSid)
-    const t3Match = t3Arr.find((x: any) => Number(x.student_id) === numSid)
-
-    // 4. 学生信息
+    const numSid = Number(sid)
     const st = studentResults.value.find((s: any) => Number(s.id) === numSid) || {}
 
-    studentDetail.value = {
-      name: st.name || '', student_no: st.student_no || '', class_name: st.class_name || '',
-      subjects: exam.subjects || {},
-      total: Number(exam.total) || 0,
-      grade_rank: exam.grade_rank ?? '-',
-      class_rank: exam.class_rank ?? '-',
-      yuwai: ywMatch ? Number(ywMatch.total_score) : (Number(exam.yws_total) || 0),
-      yuwai_rank: ywMatch ? ywMatch.rank : '-',
-      top3: t3Match ? Number(t3Match.total_score) : (Number(exam.top3_total) || 0),
-      top3_rank: t3Match ? t3Match.rank : '-',
+    // 获取学生所有考试成绩
+    const r1 = await api.get('/analysis/student-trend', { params: { student_id: numSid } })
+    let examList = r1.data || []
+    if (!examList.length) { loading.value = false; return }
+
+    // 如果选了考试则只显示该考试
+    if (eid) {
+      const numEid = Number(eid)
+      examList = examList.filter((x: any) => Number(x.exam_id) === numEid)
+      if (!examList.length) { loading.value = false; return }
+      const ex = exams.value.find((e: any) => Number(e.id) === numEid)
+      examName2.value = ex?.name || String(eid)
     }
-  } catch (e: any) {
-    console.error('loadStudentScores:', e)
-  } finally {
-    loading.value = false
-  }
+
+    // 为每场考试加载排名
+    const rows: any[] = []
+    for (const exam of examList) {
+      const numEid = Number(exam.exam_id)
+      const cacheKey = String(numEid)
+
+      if (!rankCache.value[`yw_${cacheKey}`]) {
+        const [rw, rt] = await Promise.all([
+          api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: 'yuwai', per_page: 2000 } }),
+          api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: 'top3', per_page: 2000 } }),
+        ])
+        rankCache.value[`yw_${cacheKey}`] = rw.data || []
+        rankCache.value[`t3_${cacheKey}`] = rt.data || []
+      }
+
+      const ywArr = rankCache.value[`yw_${cacheKey}`] || []
+      const t3Arr = rankCache.value[`t3_${cacheKey}`] || []
+      const ywMatch = ywArr.find((x: any) => Number(x.student_id) === numSid)
+      const t3Match = t3Arr.find((x: any) => Number(x.student_id) === numSid)
+
+      rows.push({
+        name: st.name || '', student_no: st.student_no || '',
+        exam_name: exam.exam_name, exam_date: exam.exam_date,
+        subjects: exam.subjects || {},
+        total: Number(exam.total) || 0,
+        grade_rank: exam.grade_rank ?? '-',
+        class_rank: exam.class_rank ?? '-',
+        yuwai: ywMatch ? Number(ywMatch.total_score) : (Number(exam.yws_total) || 0),
+        yuwai_rank: ywMatch ? ywMatch.rank : '-',
+        top3: t3Match ? Number(t3Match.total_score) : (Number(exam.top3_total) || 0),
+        top3_rank: t3Match ? t3Match.rank : '-',
+      })
+    }
+
+    if (eid && rows.length === 1) {
+      studentDetail.value = rows[0]
+    } else {
+      scoreData.value = rows as any
+    }
+  } catch (e: any) { console.error(e) }
+  finally { loading.value = false }
 }
 </script>
