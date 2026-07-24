@@ -1,7 +1,7 @@
 <template>
   <div>
     <h3>成绩查询</h3>
-    <el-tabs v-model="mode">
+    <el-tabs v-model="mode" @tab-change="onTabChange">
       <el-tab-pane label="按班级查询" name="class" />
       <el-tab-pane label="按学生查询" name="student" />
     </el-tabs>
@@ -126,6 +126,11 @@ const studentSubjs = computed(() => {
   return ALL_SUBJS.filter(sn => studentDetail.value.subjects[sn] != null)
 })
 
+function onTabChange() {
+  scoreData.value = []; studentDetail.value = null
+  studentResults.value = []; selectedStudentId.value = null
+  rankCache.value = {}
+}
 function onExamChange() { studentDetail.value = null; studentResults.value = []; rankCache.value = {} }
 function fmt(v: any): string { return (v === null || v === undefined || v === '') ? '-' : String(v) }
 

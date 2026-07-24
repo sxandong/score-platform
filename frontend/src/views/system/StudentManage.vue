@@ -28,7 +28,7 @@
       <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }"><el-tag :type="row.status==='enrolled'?'success':'info'">{{ row.status }}</el-tag></template>
       </el-table-column>
-      <el-table-column prop="electives" label="选科" width="140">
+      <el-table-column prop="electives" label="选科" width="160">
         <template #default="{ row }">
           <el-tag v-for="e in (row.electives||'').split(',').filter(Boolean)" :key="e" size="small" type="warning" style="margin:1px">{{ e }}</el-tag>
         </template>
