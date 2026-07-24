@@ -88,13 +88,21 @@
       </div>
     </div>
 
+    <!-- 历次考试趋势图 -->
+    <div v-if="mode==='student' && !examId2 && scoreData.length > 1" style="margin-top:16px">
+      <el-card><template #header><span style="font-weight:bold">成绩趋势图</span></template>
+        <div ref="trendChart" style="width:100%;height:400px"></div>
+      </el-card>
+    </div>
+
     <el-empty v-if="!scoreData.length && !studentDetail"
       :description="mode==='class' ? '请选择考试和班级后查询' : '搜索学生即可查看成绩'" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick, watch } from 'vue'
+import * as echarts from 'echarts'
 import api from '@/api'
 
 const mode = ref('class')
@@ -105,7 +113,44 @@ const studentKeyword = ref(''); const searching = ref(false)
 const studentResults = ref<any[]>([]); const selectedStudentId = ref<number | null>(null)
 const scoreData = ref<any[]>([]); const studentDetail = ref<any>(null)
 const loading = ref(false)
-const rankCache = ref<Record<string, any[]>>({})  // 缓存同一考试的排名数据
+const rankCache = ref<Record<string, any[]>>({})
+const trendChart = ref<HTMLDivElement | null>(null)
+let chartInstance: echarts.ECharts | null = null
+
+// 绘制趋势图
+watch([scoreData, mode], async () => {
+  await nextTick()
+  if (mode.value !== 'student' || examId2.value || scoreData.value.length <= 1) {
+    chartInstance?.dispose(); chartInstance = null; return
+  }
+  if (!trendChart.value) return
+
+  if (!chartInstance) chartInstance = echarts.init(trendChart.value)
+  const data = [...scoreData.value].reverse() // 时间正序
+
+  const option: any = {
+    tooltip: { trigger: 'axis' },
+    legend: { top: 0, type: 'scroll' },
+    grid: { left: 50, right: 120, top: 40, bottom: 30 },
+    xAxis: { type: 'category', data: data.map((r:any) => r.exam_name?.replace('高三','').replace('适应性考试','适应') || '') },
+    yAxis: [
+      { type: 'value', name: '分数', min: 0 },
+      { type: 'value', name: '排名', inverse: true, min: 1 },
+    ],
+    series: [
+      { name: '总分', type: 'line', data: data.map((r:any) => r.total), smooth: true },
+      { name: '语数外', type: 'line', data: data.map((r:any) => r.yuwai), smooth: true },
+      { name: '7选3', type: 'line', data: data.map((r:any) => r.top3), smooth: true },
+      { name: '总分排名', type: 'line', yAxisIndex: 1, data: data.map((r:any) => r.grade_rank), smooth: true,
+        lineStyle: { type: 'dashed' } },
+      { name: '语数外排名', type: 'line', yAxisIndex: 1, data: data.map((r:any) => r.yuwai_rank), smooth: true,
+        lineStyle: { type: 'dashed' } },
+      { name: '7选3排名', type: 'line', yAxisIndex: 1, data: data.map((r:any) => r.top3_rank), smooth: true,
+        lineStyle: { type: 'dashed' } },
+    ],
+  }
+  chartInstance.setOption(option, true)
+})
 
 
 onMounted(async () => {
