@@ -249,6 +249,7 @@ function drawCharts(data: any[], numSid: number) {
       xAxis: { type: 'category', data: labels },
       yAxis: { type: 'value', name: '排名', inverse: true, min: 1, max: yMax || maxTotal },
       series: [{ name: title, type: 'line', data: vals, smooth: true,
+        label: { show: true, position: 'top', fontSize: 11 },
         markLine: { data: [{ type: 'average', name: '平均' }] } }],
     }, true)
   }
@@ -280,6 +281,7 @@ function drawCharts(data: any[], numSid: number) {
       xAxis: { type: 'category', data: labels },
       yAxis: { type: 'value', name: '排名', inverse: true, min: 1, max: yMax },
       series: [{ name: sn+'排名', type: 'line', data: ranks, smooth: true,
+        label: { show: true, position: 'top', fontSize: 11 },
         markLine: { data: [{ type: 'average', name: '平均排名' }] } }],
     }, true)
   })
