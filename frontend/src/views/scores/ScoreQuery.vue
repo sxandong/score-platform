@@ -162,22 +162,29 @@ watch([scoreData, mode], async () => {
   const data = [...scoreData.value].sort((a:any,b:any) =>
     (a.exam_date||'').localeCompare(b.exam_date||'')) // 按日期升序
 
-  // 每个科目一张图
+  // 每个科目排名图 (从subject rank缓存取)
   const labels = data.map((r:any) =>
     (r.exam_name||'').replace(/高三|适应性考试/g,'').substring(0,10) || r.exam_date||'')
   chartSubjs.value.forEach((sn, i) => {
     const el = subjRefs.value[i]
     if (!el) return
     const c = echarts.init(el); chartInstances.push(c)
+    // 取每次考试该科目的排名
+    const subjRanks = data.map((r:any) => {
+      const examRanks = rankCache.value[`subj_${r.exam_id}`]
+      if (!examRanks) return null
+      const found = examRanks.find((x:any) => x.subject_name === sn && Number(x.student_id) === Number(selectedStudentId.value))
+      return found ? found.rank : null
+    })
     c.setOption({
       tooltip: { trigger: 'axis' },
       grid: { left: 50, right: 20, top: 20, bottom: 25 },
       xAxis: { type: 'category', data: labels },
-      yAxis: { type: 'value', name: '分数' },
+      yAxis: { type: 'value', name: '排名', inverse: true, min: 1 },
       series: [{
-        name: sn, type: 'line', data: data.map((r:any)=>r.subjects[sn]??null),
+        name: sn + '排名', type: 'line', data: subjRanks,
         smooth: true, connectNulls: true,
-        markLine: { data: [{ type: 'average', name: '平均' }] },
+        markLine: { data: [{ type: 'average', name: '平均排名' }] },
       }],
     }, true)
   })
@@ -280,12 +287,14 @@ async function loadStudentScores() {
       const cacheKey = String(numEid)
 
       if (!rankCache.value[`yw_${cacheKey}`]) {
-        const [rw, rt] = await Promise.all([
+        const [rw, rt, rs] = await Promise.all([
           api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: 'yuwai', per_page: 2000 } }),
           api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: 'top3', per_page: 2000 } }),
+          api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: 'subject', per_page: 5000 } }),
         ])
         rankCache.value[`yw_${cacheKey}`] = rw.data || []
         rankCache.value[`t3_${cacheKey}`] = rt.data || []
+        rankCache.value[`subj_${cacheKey}`] = rs.data || []
       }
 
       const ywArr = rankCache.value[`yw_${cacheKey}`] || []

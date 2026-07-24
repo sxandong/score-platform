@@ -208,6 +208,12 @@ async def get_ranks(
     if class_id:
         conditions.append(Student.class_id == class_id)
 
+    # 预加载科目名称映射
+    subj_names: dict[int, str] = {}
+    if rank_type == "subject":
+        result = await db.execute(select(Subject))
+        subj_names = {s.id: s.name for s in result.scalars().all()}
+
     offset = (page - 1) * per_page
     query = (
         select(RankSnapshot, Student.name, Student.student_no, Class.name)
@@ -221,14 +227,17 @@ async def get_ranks(
     result = await db.execute(query)
     rows = []
     for rs, sname, sno, cname in result.all():
-        rows.append({
+        row = {
             "rank": rs.grade_rank,
             "student_id": rs.student_id,
             "student_name": sname,
             "student_no": sno,
             "class_name": cname,
             "total_score": float(rs.total_score),
-        })
+        }
+        if rs.rank_type == "subject" and rs.subject_id:
+            row["subject_name"] = subj_names.get(rs.subject_id, str(rs.subject_id))
+        rows.append(row)
 
     # 总数
     count_q = (
