@@ -213,8 +213,10 @@ async function loadStudentScores() {
 }
 
 function drawCharts(data: any[], numSid: number) {
-  const labels = [...data].sort((a:any,b:any) => (a.exam_date||'').localeCompare(b.exam_date||''))
-    .map((r:any) => (r.exam_name||'').replace(/高三|适应性考试/g,'').substring(0,12) || r.exam_date||'')
+  // 按日期升序排列
+  const sorted = [...data].sort((a:any,b:any) => (a.exam_date||'').localeCompare(b.exam_date||''))
+  const labels = sorted.map((r:any) =>
+    (r.exam_name||'').replace(/高三|适应性考试/g,'').substring(0,12) || r.exam_date||'')
 
   function makeRankChart(domId: string, rankKey: string, title: string) {
     const el = document.getElementById(domId); if (!el) return
@@ -223,7 +225,7 @@ function drawCharts(data: any[], numSid: number) {
       grid: { left: 55, right: 20, top: 20, bottom: 25 },
       xAxis: { type: 'category', data: labels },
       yAxis: { type: 'value', name: '排名', inverse: true, min: 1 },
-      series: [{ name: title, type: 'line', data: data.map((r:any)=>r[rankKey]),
+      series: [{ name: title, type: 'line', data: sorted.map((r:any)=>r[rankKey]),
         smooth: true, markLine: { data: [{ type: 'average', name: '平均' }] } }],
     })
   }
@@ -231,7 +233,7 @@ function drawCharts(data: any[], numSid: number) {
   // 各科排名
   chartSubjs.value.forEach(sn => {
     const el = document.getElementById('chart-'+sn); if (!el) return
-    const ranks = data.map((r:any) => {
+    const ranks = sorted.map((r:any) => {
       const cache = rankCache.value[`subj_${r.exam_id}`] || []
       const f = cache.find((x:any) => x.subject_name === sn && Number(x.student_id) === numSid)
       return f ? f.rank : null
