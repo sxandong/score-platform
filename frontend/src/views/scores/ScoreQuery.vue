@@ -93,13 +93,13 @@
       <el-card style="margin-bottom:12px"><template #header><span style="font-weight:bold">各科成绩趋势</span></template>
         <div ref="subjChart" style="width:100%;height:380px"></div>
       </el-card>
-      <el-card style="margin-bottom:12px"><template #header><span style="font-weight:bold">总分趋势</span></template>
+      <el-card style="margin-bottom:12px"><template #header><span style="font-weight:bold">总分排名趋势</span></template>
         <div ref="totalChart" style="width:100%;height:380px"></div>
       </el-card>
-      <el-card style="margin-bottom:12px"><template #header><span style="font-weight:bold">语数外趋势</span></template>
+      <el-card style="margin-bottom:12px"><template #header><span style="font-weight:bold">语数外排名趋势</span></template>
         <div ref="yuwaiChart" style="width:100%;height:380px"></div>
       </el-card>
-      <el-card><template #header><span style="font-weight:bold">7选3趋势</span></template>
+      <el-card><template #header><span style="font-weight:bold">7选3排名趋势</span></template>
         <div ref="top3Chart" style="width:100%;height:380px"></div>
       </el-card>
     </div>
@@ -129,24 +129,18 @@ const yuwaiChart = ref<HTMLDivElement | null>(null)
 const top3Chart = ref<HTMLDivElement | null>(null)
 const chartInstances: echarts.ECharts[] = []
 
-function _makeScoreRankOption(data: any[], scoreKey: string, rankKey: string, scoreName: string) {
+function _makeRankOption(data: any[], rankKey: string, title: string) {
   return {
     tooltip: { trigger: 'axis' },
-    legend: { top: 0 },
-    grid: { left: 55, right: 55, top: 40, bottom: 30 },
+    grid: { left: 55, right: 30, top: 20, bottom: 30 },
     xAxis: { type: 'category', data: data.map((r:any) =>
       (r.exam_name||'').replace(/高三|适应性考试/g,'').substring(0,10) || r.exam_date || '') },
-    yAxis: [
-      { type: 'value', name: '分数', min: (mn: number) => Math.floor(mn.min * 0.9) },
-      { type: 'value', name: '排名', inverse: true, min: 1 },
-    ],
-    series: [
-      { name: scoreName + '分数', type: 'line', data: data.map((r:any)=>r[scoreKey]),
-        smooth: true, itemStyle: { color: '#409EFF' } },
-      { name: scoreName + '排名', type: 'line', yAxisIndex: 1,
-        data: data.map((r:any)=>r[rankKey]), smooth: true,
-        itemStyle: { color: '#E6A23C' }, lineStyle: { type: 'dashed' } },
-    ],
+    yAxis: { type: 'value', name: '排名', inverse: true, min: 1 },
+    series: [{
+      name: title, type: 'line', data: data.map((r:any)=>r[rankKey]),
+      smooth: true, itemStyle: { color: '#409EFF' },
+      markLine: { data: [{ type: 'average', name: '平均排名' }] },
+    }],
   }
 }
 
@@ -178,22 +172,20 @@ watch([scoreData, mode], async () => {
     }, true)
   }
 
-  // 总分图
+  // 总分排名图
   if (totalChart.value) {
     const c2 = echarts.init(totalChart.value); chartInstances.push(c2)
-    c2.setOption(_makeScoreRankOption(data, 'total', 'grade_rank', '总分'), true)
+    c2.setOption(_makeRankOption(data, 'grade_rank', '总分排名'), true)
   }
-
-  // 语数外图
+  // 语数外排名图
   if (yuwaiChart.value) {
     const c3 = echarts.init(yuwaiChart.value); chartInstances.push(c3)
-    c3.setOption(_makeScoreRankOption(data, 'yuwai', 'yuwai_rank', '语数外'), true)
+    c3.setOption(_makeRankOption(data, 'yuwai_rank', '语数外排名'), true)
   }
-
-  // 7选3图
+  // 7选3排名图
   if (top3Chart.value) {
     const c4 = echarts.init(top3Chart.value); chartInstances.push(c4)
-    c4.setOption(_makeScoreRankOption(data, 'top3', 'top3_rank', '7选3'), true)
+    c4.setOption(_makeRankOption(data, 'top3_rank', '7选3排名'), true)
   }
 })
 
