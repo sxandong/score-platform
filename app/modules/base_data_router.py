@@ -55,6 +55,7 @@ class StudentUpdate(BaseModel):
     name: str | None = None
     class_id: int | None = None
     status: str | None = None
+    electives: str | None = None
 
 # ======================= 年级 =======================
 
@@ -356,6 +357,7 @@ async def update_student(
     if req.name is not None: s.name = req.name
     if req.class_id is not None: s.class_id = req.class_id
     if req.status is not None: s.status = req.status
+    if req.electives is not None: s.electives = req.electives
     await db.flush()
     return success_response(data={"id": s.id, "name": s.name}, message="学生更新成功")
 

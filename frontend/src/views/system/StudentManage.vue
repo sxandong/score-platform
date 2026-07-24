@@ -28,6 +28,11 @@
       <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }"><el-tag :type="row.status==='enrolled'?'success':'info'">{{ row.status }}</el-tag></template>
       </el-table-column>
+      <el-table-column prop="electives" label="选科" width="140">
+        <template #default="{ row }">
+          <el-tag v-for="e in (row.electives||'').split(',').filter(Boolean)" :key="e" size="small" type="warning" style="margin:1px">{{ e }}</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="180">
         <template #default="{ row }">
           <el-button size="small" @click="openDialog(row)">编辑</el-button>
@@ -49,6 +54,11 @@
         <el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item>
         <el-form-item label="班级">
           <el-select v-model="form.class_id"><el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" /></el-select>
+        </el-form-item>
+        <el-form-item label="7选3选科">
+          <el-checkbox-group v-model="form.electives">
+            <el-checkbox v-for="e in ELEC_SUBJS" :key="e" :label="e" :value="e" style="margin-right:8px">{{ e }}</el-checkbox>
+          </el-checkbox-group>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -107,8 +117,9 @@ const loading = ref(false); const page = ref(1); const total = ref(0)
 const filterClassId = ref<number | null>(null); const keyword = ref('')
 const selected = ref<any[]>([])
 
+const ELEC_SUBJS = ['政治','历史','地理','物理','化学','生物','技术']
 const dialog = ref(false); const editing = ref<any>(null)
-const form = reactive({ student_no: '', name: '', class_id: 1 })
+const form = reactive({ student_no: '', name: '', class_id: 1, electives: [] as string[] })
 
 // ---- 数据加载 ----
 async function loadClasses() {
@@ -130,13 +141,19 @@ async function loadStudents() {
 function openDialog(row?: any) {
   editing.value = row || null
   form.student_no = row?.student_no || ''; form.name = row?.name || ''
-  form.class_id = row?.class_id || 1; dialog.value = true
+  form.class_id = row?.class_id || 1
+  form.electives = (row?.electives || '').split(',').filter(Boolean)
+  dialog.value = true
 }
 async function saveStudent() {
+  const payload: any = {
+    student_no: form.student_no, name: form.name,
+    class_id: form.class_id, electives: form.electives.join(','),
+  }
   try {
     editing.value
-      ? await api.put(`/students/${editing.value.id}`, { ...form })
-      : await api.post('/students', { ...form })
+      ? await api.put(`/students/${editing.value.id}`, payload)
+      : await api.post('/students', { ...payload })
     ElMessage.success('保存成功'); dialog.value = false; loadStudents()
   } catch (e: any) { ElMessage.error(e.message) }
 }
