@@ -189,16 +189,21 @@ async function loadStudentScores() {
       const ywMatch = ywArr.find((x: any) => Number(x.student_id) === numSid)
       const t3Match = t3Arr.find((x: any) => Number(x.student_id) === numSid)
 
+      const gr = exam.grade_rank
+      const cr = exam.class_rank
+      const ywr = ywMatch ? Number(ywMatch.rank) : 0
+      const t3r = t3Match ? Number(t3Match.rank) : 0
       rows.push({
         exam_id: exam.exam_id, name: st.name || '', student_no: st.student_no || '',
         exam_name: exam.exam_name, exam_date: exam.exam_date,
         subjects: exam.subjects || {},
         total: Number(exam.total) || 0,
-        grade_rank: exam.grade_rank ?? '-', class_rank: exam.class_rank ?? '-',
+        grade_rank: (gr !== null && gr !== undefined) ? Number(gr) : 0,
+        class_rank: (cr !== null && cr !== undefined) ? Number(cr) : 0,
         yuwai: ywMatch ? Number(ywMatch.total_score) : (Number(exam.yws_total) || 0),
-        yuwai_rank: ywMatch ? ywMatch.rank : '-',
+        yuwai_rank: ywr,
         top3: t3Match ? Number(t3Match.total_score) : (Number(exam.top3_total) || 0),
-        top3_rank: t3Match ? t3Match.rank : '-',
+        top3_rank: t3r,
       })
     }
     scoreData.value = rows
@@ -213,39 +218,47 @@ async function loadStudentScores() {
 }
 
 function drawCharts(data: any[], numSid: number) {
-  // 按日期升序排列
   const sorted = [...data].sort((a:any,b:any) => (a.exam_date||'').localeCompare(b.exam_date||''))
   const labels = sorted.map((r:any) =>
-    (r.exam_name||'').replace(/高三|适应性考试/g,'').substring(0,12) || r.exam_date||'')
+    (r.exam_name||'').replace(/高三|适应性考试/g,'').substring(0,10) || r.exam_date||'')
+
+  function toNum(v: any): number | null {
+    const n = Number(v)
+    return (n > 0 && Number.isFinite(n)) ? n : null
+  }
 
   function makeRankChart(domId: string, rankKey: string, title: string) {
     const el = document.getElementById(domId); if (!el) return
-    echarts.init(el).setOption({
+    const vals = sorted.map((r:any) => toNum(r[rankKey]))
+    if (vals.every(v => v === null)) return
+    const inst = echarts.getInstanceByDom(el) || echarts.init(el)
+    inst.setOption({
       tooltip: { trigger: 'axis' },
       grid: { left: 55, right: 20, top: 20, bottom: 25 },
       xAxis: { type: 'category', data: labels },
       yAxis: { type: 'value', name: '排名', inverse: true, min: 1 },
-      series: [{ name: title, type: 'line', data: sorted.map((r:any)=>r[rankKey]),
-        smooth: true, markLine: { data: [{ type: 'average', name: '平均' }] } }],
-    })
+      series: [{ name: title, type: 'line', data: vals, smooth: true,
+        markLine: { data: [{ type: 'average', name: '平均' }] } }],
+    }, true)
   }
 
-  // 各科排名
   chartSubjs.value.forEach(sn => {
     const el = document.getElementById('chart-'+sn); if (!el) return
     const ranks = sorted.map((r:any) => {
       const cache = rankCache.value[`subj_${r.exam_id}`] || []
       const f = cache.find((x:any) => x.subject_name === sn && Number(x.student_id) === numSid)
-      return f ? f.rank : null
+      return f ? toNum(f.rank) : null
     })
-    echarts.init(el).setOption({
+    if (ranks.every(v => v === null)) return
+    const inst = echarts.getInstanceByDom(el) || echarts.init(el)
+    inst.setOption({
       tooltip: { trigger: 'axis' },
       grid: { left: 55, right: 20, top: 20, bottom: 25 },
       xAxis: { type: 'category', data: labels },
       yAxis: { type: 'value', name: '排名', inverse: true, min: 1 },
       series: [{ name: sn+'排名', type: 'line', data: ranks, smooth: true,
         markLine: { data: [{ type: 'average', name: '平均排名' }] } }],
-    })
+    }, true)
   })
 
   makeRankChart('chart-total', 'grade_rank', '总分排名')
