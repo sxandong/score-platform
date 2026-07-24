@@ -78,14 +78,14 @@
       </div>
 
       <!-- 排名趋势图 -->
-      <el-row :gutter="12" v-if="!examId2 && scoreData.length > 1" style="margin-top:16px">
+      <el-row :gutter="12" v-show="!examId2 && scoreData.length > 1" style="margin-top:16px">
         <el-col :span="12" v-for="sn in chartSubjs" :key="sn" style="margin-bottom:12px">
           <el-card><template #header><span style="font-weight:bold">{{ sn }} 排名趋势</span></template>
             <div :id="'chart-'+sn" style="width:100%;height:300px"></div>
           </el-card>
         </el-col>
       </el-row>
-      <div v-if="!examId2 && scoreData.length > 1" style="margin-top:12px">
+      <div v-show="!examId2 && scoreData.length > 1" style="margin-top:12px">
         <el-card style="margin-bottom:12px"><template #header><span style="font-weight:bold">总分排名趋势</span></template>
           <div id="chart-total" style="width:100%;height:380px"></div>
         </el-card>
@@ -210,7 +210,9 @@ async function loadStudentScores() {
 
     // 绘制图表
     if (!examId2.value && rows.length > 1) {
-      await nextTick(); await new Promise(r => setTimeout(r, 200))
+      await nextTick()
+      await new Promise(r => setTimeout(r, 500))
+      console.log('drawCharts: rows=', rows.length, 'subjs=', chartSubjs.value)
       drawCharts(rows, numSid)
     }
   } catch (e: any) { console.error(e) }
