@@ -132,11 +132,22 @@ async def batch_import_excel(
     db: AsyncSession, file_content: bytes, exam_id: int,
 ) -> dict:
     """导入Excel成绩: 列=学籍号,姓名,班级,语文,数学,外语,政治,历史,地理,物理,化学,生物,技术"""
-    df = pd.read_excel(BytesIO(file_content), dtype=str)  # 全部按字符串读,避免数字精度丢失
-    # 将科目列转为数值
-    score_cols = [c for c in df.columns if c not in ('学籍号','学号','姓名','班级','班级名称','class_name','student_no','name')]
-    for c in score_cols:
-        df[c] = pd.to_numeric(df[c], errors='coerce')
+    # 学籍号用字符串读取, 防止12位数字精度丢失(特别是尾号0001-0009)
+    def _read_sno(x):
+        if pd.isna(x): return ''
+        if isinstance(x, (int, float)):
+            return str(int(x)).zfill(12)
+        s = str(x).strip()
+        # 处理科学计数法: 2.30602E+11 → 230602000000
+        if 'E' in s.upper() or 'e' in s:
+            return str(int(float(s))).zfill(12)
+        return s
+
+    converters = {}
+    for col_hint in ('学籍号', '学号', 'student_no'):
+        converters[col_hint] = _read_sno
+
+    df = pd.read_excel(BytesIO(file_content), converters=converters)
     df = df.where(pd.notna(df), None)
 
     # 科目映射 (列名→subject_id)
