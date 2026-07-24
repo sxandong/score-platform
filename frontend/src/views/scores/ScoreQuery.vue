@@ -305,7 +305,7 @@ async function loadStudentScores() {
       const t3Match = t3Arr.find((x: any) => Number(x.student_id) === numSid)
 
       rows.push({
-        name: st.name || '', student_no: st.student_no || '',
+        exam_id: exam.exam_id, name: st.name || '', student_no: st.student_no || '',
         exam_name: exam.exam_name, exam_date: exam.exam_date,
         subjects: exam.subjects || {},
         total: Number(exam.total) || 0,
