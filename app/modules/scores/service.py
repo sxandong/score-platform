@@ -132,7 +132,11 @@ async def batch_import_excel(
     db: AsyncSession, file_content: bytes, exam_id: int,
 ) -> dict:
     """导入Excel成绩: 列=学籍号,姓名,班级,语文,数学,外语,政治,历史,地理,物理,化学,生物,技术"""
-    df = pd.read_excel(BytesIO(file_content))
+    df = pd.read_excel(BytesIO(file_content), dtype=str)  # 全部按字符串读,避免数字精度丢失
+    # 将科目列转为数值
+    score_cols = [c for c in df.columns if c not in ('学籍号','学号','姓名','班级','班级名称','class_name','student_no','name')]
+    for c in score_cols:
+        df[c] = pd.to_numeric(df[c], errors='coerce')
     df = df.where(pd.notna(df), None)
 
     # 科目映射 (列名→subject_id)
@@ -159,20 +163,17 @@ async def batch_import_excel(
 
     for idx, row in df.iterrows():
         sno_val = row.get("学籍号")
-        if sno_val is None or (isinstance(sno_val, float) and math.isnan(sno_val)):
+        if sno_val is None or str(sno_val).strip() == '' or str(sno_val) == 'nan':
             errors.append({"row": idx+2, "reason":"缺少学籍号"}); continue
-        # 12位学籍号: 避免科学计数法或精度丢失, 格式化为12位字符串
-        if isinstance(sno_val, float):
-            sno = str(int(sno_val)).zfill(12)
-        else:
-            sno = str(sno_val).strip().zfill(12)
-        if not sno or sno == '0'*12:
+        sno = str(sno_val).strip()
+        if not sno:
             errors.append({"row": idx+2, "reason":"学籍号为空"}); continue
 
-        name = str(row.get("姓名", "")) if pd.notna(row.get("姓名")) else ""
+        name_val = row.get("姓名", "")
+        name = str(name_val).strip() if name_val and str(name_val) != 'nan' else ""
 
-        # 班级
-        cls_str = str(row.get("班级", "")).strip() if pd.notna(row.get("班级")) else ""
+        cls_val = row.get("班级", "")
+        cls_str = str(cls_val).strip() if cls_val and str(cls_val) != 'nan' else ""
         class_id = class_by_name.get(cls_str)
         if not class_id and cls_str:
             for cn, cid in class_by_name.items():
