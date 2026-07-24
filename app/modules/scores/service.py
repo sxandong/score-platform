@@ -100,7 +100,9 @@ async def get_class_scores(db: AsyncSession, exam_id: int, class_id: int) -> lis
                 if rs.student_id in student_scores:
                     student_scores[rs.student_id][key] = rs.grade_rank
 
-    return list(student_scores.values())
+    result = list(student_scores.values())
+    result.sort(key=lambda x: x.get("grade_rank") or 9999)
+    return result
 
 
 async def get_student_scores(db: AsyncSession, student_id: int,
