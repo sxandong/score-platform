@@ -218,9 +218,18 @@ async def batch_import_excel(
             if name: student.name = name
             student.class_id = class_id
 
+        # 该生应导入的科目: 语数外 + 选科
+        YWYS_NAMES = {'语文', '数学', '外语'}
+        electives_set = set()
+        if student.electives:
+            electives_set = {s.strip() for s in student.electives.split(',') if s.strip()}
+        allowed_subjects = YWYS_NAMES | electives_set
+
         # 成绩
         for col in columns:
             if col not in subject_map: continue
+            # 跳过未选科目
+            if col not in allowed_subjects: continue
             val = row[col]
             if val is None: continue
             if isinstance(val, float) and (math.isnan(val) or math.isinf(val)): continue
