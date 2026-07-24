@@ -90,8 +90,17 @@
 
     <!-- 历次考试趋势图 -->
     <div v-if="mode==='student' && !examId2 && scoreData.length > 1" style="margin-top:16px">
-      <el-card><template #header><span style="font-weight:bold">成绩趋势图</span></template>
-        <div ref="trendChart" style="width:100%;height:400px"></div>
+      <el-card style="margin-bottom:12px"><template #header><span style="font-weight:bold">各科成绩趋势</span></template>
+        <div ref="subjChart" style="width:100%;height:380px"></div>
+      </el-card>
+      <el-card style="margin-bottom:12px"><template #header><span style="font-weight:bold">总分趋势</span></template>
+        <div ref="totalChart" style="width:100%;height:380px"></div>
+      </el-card>
+      <el-card style="margin-bottom:12px"><template #header><span style="font-weight:bold">语数外趋势</span></template>
+        <div ref="yuwaiChart" style="width:100%;height:380px"></div>
+      </el-card>
+      <el-card><template #header><span style="font-weight:bold">7选3趋势</span></template>
+        <div ref="top3Chart" style="width:100%;height:380px"></div>
       </el-card>
     </div>
 
@@ -114,42 +123,78 @@ const studentResults = ref<any[]>([]); const selectedStudentId = ref<number | nu
 const scoreData = ref<any[]>([]); const studentDetail = ref<any>(null)
 const loading = ref(false)
 const rankCache = ref<Record<string, any[]>>({})
-const trendChart = ref<HTMLDivElement | null>(null)
-let chartInstance: echarts.ECharts | null = null
+const subjChart = ref<HTMLDivElement | null>(null)
+const totalChart = ref<HTMLDivElement | null>(null)
+const yuwaiChart = ref<HTMLDivElement | null>(null)
+const top3Chart = ref<HTMLDivElement | null>(null)
+const chartInstances: echarts.ECharts[] = []
 
-// 绘制趋势图
-watch([scoreData, mode], async () => {
-  await nextTick()
-  if (mode.value !== 'student' || examId2.value || scoreData.value.length <= 1) {
-    chartInstance?.dispose(); chartInstance = null; return
-  }
-  if (!trendChart.value) return
-
-  if (!chartInstance) chartInstance = echarts.init(trendChart.value)
-  const data = [...scoreData.value].reverse() // 时间正序
-
-  const option: any = {
+function _makeScoreRankOption(data: any[], scoreKey: string, rankKey: string, scoreName: string) {
+  return {
     tooltip: { trigger: 'axis' },
-    legend: { top: 0, type: 'scroll' },
-    grid: { left: 50, right: 120, top: 40, bottom: 30 },
-    xAxis: { type: 'category', data: data.map((r:any) => r.exam_name?.replace('高三','').replace('适应性考试','适应') || '') },
+    legend: { top: 0 },
+    grid: { left: 55, right: 55, top: 40, bottom: 30 },
+    xAxis: { type: 'category', data: data.map((r:any) =>
+      (r.exam_name||'').replace(/高三|适应性考试/g,'').substring(0,10) || r.exam_date || '') },
     yAxis: [
-      { type: 'value', name: '分数', min: 0 },
+      { type: 'value', name: '分数', min: (mn: number) => Math.floor(mn.min * 0.9) },
       { type: 'value', name: '排名', inverse: true, min: 1 },
     ],
     series: [
-      { name: '总分', type: 'line', data: data.map((r:any) => r.total), smooth: true },
-      { name: '语数外', type: 'line', data: data.map((r:any) => r.yuwai), smooth: true },
-      { name: '7选3', type: 'line', data: data.map((r:any) => r.top3), smooth: true },
-      { name: '总分排名', type: 'line', yAxisIndex: 1, data: data.map((r:any) => r.grade_rank), smooth: true,
-        lineStyle: { type: 'dashed' } },
-      { name: '语数外排名', type: 'line', yAxisIndex: 1, data: data.map((r:any) => r.yuwai_rank), smooth: true,
-        lineStyle: { type: 'dashed' } },
-      { name: '7选3排名', type: 'line', yAxisIndex: 1, data: data.map((r:any) => r.top3_rank), smooth: true,
-        lineStyle: { type: 'dashed' } },
+      { name: scoreName + '分数', type: 'line', data: data.map((r:any)=>r[scoreKey]),
+        smooth: true, itemStyle: { color: '#409EFF' } },
+      { name: scoreName + '排名', type: 'line', yAxisIndex: 1,
+        data: data.map((r:any)=>r[rankKey]), smooth: true,
+        itemStyle: { color: '#E6A23C' }, lineStyle: { type: 'dashed' } },
     ],
   }
-  chartInstance.setOption(option, true)
+}
+
+watch([scoreData, mode], async () => {
+  await nextTick()
+  chartInstances.forEach(c => c.dispose()); chartInstances.length = 0
+  if (mode.value !== 'student' || examId2.value || scoreData.value.length <= 1) return
+
+  const data = [...scoreData.value].sort((a:any,b:any) =>
+    (a.exam_date||'').localeCompare(b.exam_date||'')) // 按日期升序
+
+  // 各科成绩图
+  if (subjChart.value) {
+    const c1 = echarts.init(subjChart.value); chartInstances.push(c1)
+    const subjSet = new Set<string>()
+    data.forEach((r:any) => Object.keys(r.subjects||{}).forEach((k:string) => subjSet.add(k)))
+    const colors = ['#409EFF','#67C23A','#E6A23C','#F56C6C','#909399','#B37FEB','#00D4AA','#FF85C0','#36CFC9','#FFC53D']
+    c1.setOption({
+      tooltip: { trigger: 'axis' }, legend: { top: 0, type: 'scroll' },
+      grid: { left: 50, right: 20, top: 40, bottom: 30 },
+      xAxis: { type: 'category', data: data.map((r:any)=>
+        (r.exam_name||'').replace(/高三|适应性考试/g,'').substring(0,10) || r.exam_date||'') },
+      yAxis: { type: 'value', name: '分数' },
+      series: [...subjSet].map((sn, i) => ({
+        name: sn, type: 'line', data: data.map((r:any)=>r.subjects[sn]??null),
+        smooth: true, itemStyle: { color: colors[i%colors.length] },
+        connectNulls: true,
+      })),
+    }, true)
+  }
+
+  // 总分图
+  if (totalChart.value) {
+    const c2 = echarts.init(totalChart.value); chartInstances.push(c2)
+    c2.setOption(_makeScoreRankOption(data, 'total', 'grade_rank', '总分'), true)
+  }
+
+  // 语数外图
+  if (yuwaiChart.value) {
+    const c3 = echarts.init(yuwaiChart.value); chartInstances.push(c3)
+    c3.setOption(_makeScoreRankOption(data, 'yuwai', 'yuwai_rank', '语数外'), true)
+  }
+
+  // 7选3图
+  if (top3Chart.value) {
+    const c4 = echarts.init(top3Chart.value); chartInstances.push(c4)
+    c4.setOption(_makeScoreRankOption(data, 'top3', 'top3_rank', '7选3'), true)
+  }
 })
 
 
