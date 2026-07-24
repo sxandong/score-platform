@@ -173,16 +173,18 @@ async function loadStudentScores() {
     for (const exam of examList) {
       const numEid = Number(exam.exam_id); const cacheKey = String(numEid)
       if (!rankCache.value[`yw_${cacheKey}`]) {
-        try {
-          const [rw, rt, rs] = await Promise.all([
-            api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: 'yuwai', per_page: 2000 } }),
-            api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: 'top3', per_page: 2000 } }),
-            api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: 'subject', per_page: 5000 } }),
-          ])
-          rankCache.value[`yw_${cacheKey}`] = rw.data || []
-          rankCache.value[`t3_${cacheKey}`] = rt.data || []
-          rankCache.value[`subj_${cacheKey}`] = rs.data || []
-        } catch {}
+        const fetchRank = async (type: string, perPage: number) => {
+          try {
+            const r = await api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: type, per_page: perPage } })
+            return r.data || []
+          } catch { return [] }
+        }
+        const [ywData, t3Data, subjData] = await Promise.all([
+          fetchRank('yuwai', 2000), fetchRank('top3', 2000), fetchRank('subject', 5000),
+        ])
+        rankCache.value[`yw_${cacheKey}`] = ywData
+        rankCache.value[`t3_${cacheKey}`] = t3Data
+        rankCache.value[`subj_${cacheKey}`] = subjData
       }
       const ywArr = rankCache.value[`yw_${cacheKey}`] || []
       const t3Arr = rankCache.value[`t3_${cacheKey}`] || []
