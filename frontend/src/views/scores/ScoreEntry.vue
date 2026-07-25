@@ -55,7 +55,9 @@ onMounted(async () => {
 })
 
 async function loadStudents() {
-  if (!examId.value || !classId.value) return
+  if (!examId.value || !classId.value) {
+    scoreRows.value = []; examSubjects.value = []; hasExisting.value = false; return
+  }
   try {
     const exr = await api.get(`/exams/${examId.value}`)
     examSubjects.value = exr.data.subjects
