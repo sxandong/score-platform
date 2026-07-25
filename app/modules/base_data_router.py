@@ -368,11 +368,11 @@ async def batch_delete_students(
     current_user=Depends(require_role("admin")),
 ):
     from sqlalchemy import text
-    ids = tuple(req.ids)
-    await db.execute(text("DELETE FROM score_details WHERE score_id IN (SELECT id FROM scores WHERE student_id IN :ids)"), {"ids": ids})
-    await db.execute(text("DELETE FROM rank_snapshots WHERE student_id IN :ids"), {"ids": ids})
-    await db.execute(text("DELETE FROM scores WHERE student_id IN :ids"), {"ids": ids})
-    await db.execute(text("DELETE FROM students WHERE id IN :ids"), {"ids": ids})
+    ids_str = ','.join(str(i) for i in req.ids)
+    await db.execute(text(f"DELETE FROM score_details WHERE score_id IN (SELECT id FROM scores WHERE student_id IN ({ids_str}))"))
+    await db.execute(text(f"DELETE FROM rank_snapshots WHERE student_id IN ({ids_str})"))
+    await db.execute(text(f"DELETE FROM scores WHERE student_id IN ({ids_str})"))
+    await db.execute(text(f"DELETE FROM students WHERE id IN ({ids_str})"))
     await db.commit()
     return success_response(message=f"已删除{len(req.ids)}个学生")
 
