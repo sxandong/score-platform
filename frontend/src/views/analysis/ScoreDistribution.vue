@@ -10,10 +10,12 @@
 
     <el-card v-if="examId" v-loading="loading">
       <div style="overflow-x:auto">
-      <el-table :data="tableData" border stripe size="small">
+      <el-table :data="tableData" border stripe size="small" :cell-style="{textAlign:'center'}">
         <el-table-column prop="subject" label="科目" width="90" fixed />
-        <el-table-column v-for="t in thresholds" :key="t" :label="'≥'+t" width="70">
-          <template #default="{row}">{{ row['t_'+t] || 0 }}</template>
+        <el-table-column v-for="t in thresholds" :key="t" :label="'≥'+t" width="72">
+          <template #default="{row}">
+            <span :class="countClass(row['t_'+t])">{{ row['t_'+t] || 0 }}</span>
+          </template>
         </el-table-column>
       </el-table>
       </div>
@@ -56,4 +58,19 @@ async function loadData() {
     })
   } catch {} finally { loading.value = false }
 }
+
+function countClass(v: number): string {
+  if (!v) return ''
+  if (v >= 100) return 'count-high'
+  if (v >= 50) return 'count-mid'
+  return 'count-low'
+}
 </script>
+
+<style scoped>
+:deep(.el-table th.el-table__cell) { background: linear-gradient(180deg,#f0f5fa,#e8f0fe); color:var(--edu-blue); font-weight:600; text-align:center; }
+.count-high { color:var(--edu-green); font-weight:700; }
+.count-mid { color:var(--edu-gold); font-weight:600; }
+.count-low { color:var(--tx-secondary); }
+</style>
+
