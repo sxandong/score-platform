@@ -126,7 +126,7 @@
 
     <div style="overflow-x:auto;width:100%">
     <el-table :data="gradeData" border stripe v-if="mode==='grade' && gradeData.length" v-loading="loading">
-      <el-table-column prop="rank" label="排名" width="70" fixed>
+      <el-table-column prop="rank" label="级排" width="65" fixed>
         <template #default="{row}"><span :class="rankClass(row.rank)">{{ row.rank }}</span></template>
       </el-table-column>
       <el-table-column prop="student_no" label="学籍号" width="130" fixed />
@@ -136,9 +136,6 @@
         <template #default="{row}">{{ row.subjects?.[sn] }}</template>
       </el-table-column>
       <el-table-column prop="total_score" label="总分" width="90" />
-      <el-table-column prop="class_rank" label="班排" width="65">
-        <template #default="{row}"><span :class="rankClass(row.class_rank)">{{ row.class_rank }}</span></template>
-      </el-table-column>
       <el-table-column prop="yuwai_total" label="语数外总分" width="100" />
       <el-table-column prop="yuwai_rank" label="语数外排名" width="100">
         <template #default="{row}"><span :class="rankClass(row.yuwai_rank)">{{ row.yuwai_rank }}</span></template>
