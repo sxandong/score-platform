@@ -8,19 +8,34 @@
       </el-form-item>
     </el-form>
 
-    <el-card v-if="examId" v-loading="loading">
-      <div style="overflow-x:auto">
+    <el-card v-if="examId && examName" v-loading="loading" style="margin-bottom:16px">
+      <template #header><span style="font-weight:600;font-size:15px">{{ examName }} — 各学科分数段情况统计</span></template>
+
+      <h4 style="margin:0 0 8px;font-size:14px;color:var(--tx-secondary)">累计人数</h4>
+      <div style="overflow-x:auto;margin-bottom:20px">
       <el-table :data="tableData" border stripe size="small" :cell-style="{textAlign:'center'}">
         <el-table-column prop="subject" label="科目" width="90" fixed />
-        <el-table-column v-for="t in thresholds" :key="t" :label="'≥'+t" width="72">
+        <el-table-column v-for="t in thresholds" :key="'n'+t" :label="'≥'+t" width="72">
           <template #default="{row}">
             <span :class="countClass(row['t_'+t])">{{ row['t_'+t] || 0 }}</span>
           </template>
         </el-table-column>
       </el-table>
       </div>
+
+      <h4 style="margin:0 0 8px;font-size:14px;color:var(--tx-secondary)">比例 (%)</h4>
+      <div style="overflow-x:auto">
+      <el-table :data="tableData" border stripe size="small" :cell-style="{textAlign:'center'}">
+        <el-table-column prop="subject" label="科目" width="90" fixed />
+        <el-table-column v-for="t in thresholds" :key="'p'+t" :label="'≥'+t" width="72">
+          <template #default="{row}">
+            <span :class="pctClass(row['p_'+t])">{{ row['p_'+t]?.toFixed(1) || '-' }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      </div>
     </el-card>
-    <el-empty v-else description="请选择考试" />
+    <el-empty v-else :description="examId ? '加载中...' : '请选择考试'" />
   </div>
 </template>
 
@@ -28,7 +43,7 @@
 import { ref, onMounted } from 'vue'
 import api from '@/api'
 
-const exams = ref([]); const examId = ref<number | null>(null)
+const exams = ref([]); const examId = ref<number | null>(null); const examName = ref('')
 const loading = ref(false); const thresholds = ref<number[]>([])
 const tableData = ref<any[]>([])
 
@@ -40,6 +55,10 @@ async function loadData() {
   if (!examId.value) return
   loading.value = true
   try {
+    // 考试名称
+    const ex = exams.value.find((e:any) => e.id === examId.value)
+    examName.value = ex?.name || ''
+
     const r = await api.get('/analysis/score-distribution', { params: { exam_id: examId.value } })
     const data = r.data || []
 
@@ -47,12 +66,16 @@ async function loadData() {
     const allThresholds = [...new Set(data.map((d: any) => d.threshold))].sort((a:any,b:any)=>b-a)
     thresholds.value = allThresholds
 
-    // 转置: 行=科目, 列=分数段
     tableData.value = SUBJ_ORDER.filter(sn => data.some((d:any) => d.subject === sn)).map(sn => {
       const row: any = { subject: sn }
+      // 总人数取最低阈值(≥40)的累计数
+      const totalRow = data.find((d: any) => d.threshold === allThresholds[allThresholds.length-1] && d.subject === sn)
+      const total = totalRow ? totalRow.count : 1
       allThresholds.forEach(t => {
         const found = data.find((d: any) => d.threshold === t && d.subject === sn)
-        row['t_'+t] = found ? found.count : 0
+        const cnt = found ? found.count : 0
+        row['t_'+t] = cnt
+        row['p_'+t] = total > 0 ? (cnt / total * 100) : 0
       })
       return row
     })
@@ -65,6 +88,12 @@ function countClass(v: number): string {
   if (v >= 50) return 'count-mid'
   return 'count-low'
 }
+function pctClass(v: number): string {
+  if (!v) return ''
+  if (v >= 80) return 'count-high'
+  if (v >= 50) return 'count-mid'
+  return 'count-low'
+}
 </script>
 
 <style scoped>
@@ -73,4 +102,3 @@ function countClass(v: number): string {
 .count-mid { color:var(--edu-gold); font-weight:600; }
 .count-low { color:var(--tx-secondary); }
 </style>
-
