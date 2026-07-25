@@ -44,18 +44,26 @@
         <template #default="{row}">{{ row.subjects[sn] }}</template>
       </el-table-column>
       <el-table-column prop="total" label="总分" width="80" />
-      <el-table-column prop="class_rank" label="班排" width="65" />
-      <el-table-column prop="grade_rank" label="级排" width="65" />
+      <el-table-column prop="class_rank" label="班排" width="65">
+        <template #default="{row}"><span :class="rankClass(row.class_rank)">{{ row.class_rank }}</span></template>
+      </el-table-column>
+      <el-table-column prop="grade_rank" label="级排" width="65">
+        <template #default="{row}"><span :class="rankClass(row.grade_rank)">{{ row.grade_rank }}</span></template>
+      </el-table-column>
       <el-table-column prop="yws_total" label="语数外总分" width="100" />
-      <el-table-column prop="yws_rank" label="语数外排名" width="100" />
+      <el-table-column prop="yws_rank" label="语数外排名" width="100">
+        <template #default="{row}"><span :class="rankClass(row.yws_rank)">{{ row.yws_rank }}</span></template>
+      </el-table-column>
       <el-table-column prop="top3_total" label="7选3总分" width="95" />
-      <el-table-column prop="top3_rank" label="7选3排名" width="95" />
+      <el-table-column prop="top3_rank" label="7选3排名" width="95">
+        <template #default="{row}"><span :class="rankClass(row.top3_rank)">{{ row.top3_rank }}</span></template>
+      </el-table-column>
     </el-table>
     </div>
 
     <!-- 学生表格 -->
     <div v-if="mode==='student' && scoreData.length" v-loading="loading">
-      <el-alert type="info" :closable="false" show-icon style="margin:12px 0">
+      <el-alert class="info-bar" :closable="false" show-icon style="margin:12px 0">
         <template #title>
           {{ scoreData[0]?.name }} ({{ scoreData[0]?.student_no }}) — {{ examId2 ? '单次考试' : '历次考试' }}
         </template>
@@ -68,12 +76,20 @@
           <template #default="{row}">{{ row.subjects[sn] }}</template>
         </el-table-column>
         <el-table-column prop="total" label="总分" width="80" />
-        <el-table-column prop="class_rank" label="班排" width="65" />
-        <el-table-column prop="grade_rank" label="级排" width="65" />
+        <el-table-column prop="class_rank" label="班排" width="65">
+          <template #default="{row}"><span :class="rankClass(row.class_rank)">{{ row.class_rank }}</span></template>
+        </el-table-column>
+        <el-table-column prop="grade_rank" label="级排" width="65">
+          <template #default="{row}"><span :class="rankClass(row.grade_rank)">{{ row.grade_rank }}</span></template>
+        </el-table-column>
         <el-table-column prop="yuwai" label="语数外总分" width="100" />
-        <el-table-column prop="yuwai_rank" label="语数外排名" width="100" />
+        <el-table-column prop="yuwai_rank" label="语数外排名" width="100">
+          <template #default="{row}"><span :class="rankClass(row.yuwai_rank)">{{ row.yuwai_rank }}</span></template>
+        </el-table-column>
         <el-table-column prop="top3" label="7选3总分" width="95" />
-        <el-table-column prop="top3_rank" label="7选3排名" width="95" />
+        <el-table-column prop="top3_rank" label="7选3排名" width="95">
+          <template #default="{row}"><span :class="rankClass(row.top3_rank)">{{ row.top3_rank }}</span></template>
+        </el-table-column>
       </el-table>
       </div>
 
@@ -129,6 +145,14 @@ const chartSubjs = computed(() => {
   return [...s].sort((a,b) => ALL_SUBJS.indexOf(a) - ALL_SUBJS.indexOf(b))
 })
 
+function rankClass(v: any): string {
+  const n = Number(v)
+  if (!n || n <= 0) return ''
+  if (n <= 10) return 'rank-badge rank-top'
+  if (n <= 50) return 'rank-badge rank-good'
+  if (n <= 200) return 'rank-badge rank-mid'
+  return ''
+}
 function onTabChange() { scoreData.value = []; studentDetail.value = null; studentResults.value = []; rankCache.value = {} }
 function onExamChange() { studentDetail.value = null; studentResults.value = []; rankCache.value = {} }
 
@@ -291,3 +315,33 @@ function drawCharts(data: any[], numSid: number) {
   makeRankChart('chart-top3', 'top3_rank', '7选3排名', maxTotal)
 }
 </script>
+
+<style scoped>
+/* 表格美化 */
+:deep(.el-table) { border-radius: 8px; overflow: hidden; }
+:deep(.el-table th.el-table__cell) {
+  background: linear-gradient(180deg, #f0f5fa, #e8f0fe);
+  color: var(--edu-blue); font-weight: 600; font-size: 13px;
+}
+:deep(.el-table .el-table__row:hover > td) { background: #ecf5ff !important; }
+:deep(.el-table .el-table__row--striped td) { background: #fafcfd; }
+/* 排名列高亮 */
+:deep(.el-table td) { transition: background .15s; }
+/* 得分单元格 */
+.score-cell { font-weight: 500; }
+.score-high { color: var(--edu-green); font-weight: 700; }
+.score-low { color: #e04040; }
+/* 排名数字 */
+.rank-badge {
+  display: inline-block; min-width: 28px; text-align: center; padding: 2px 6px;
+  border-radius: 10px; font-weight: 700; font-size: 13px;
+}
+.rank-top { background: #fff3cd; color: #b8860b; }
+.rank-good { background: #e8f5e9; color: #2e7d32; }
+.rank-mid { background: #e3f2fd; color: #1565c0; }
+/* 固定列阴影 */
+:deep(.el-table__fixed-right-patch) { background: #f0f5fa; }
+:deep(.el-table__fixed::before) { box-shadow: none; }
+/* 信息条 */
+.info-bar { background: linear-gradient(135deg, #e8f0fe, #f0f7ff); border-left: 4px solid var(--edu-blue); }
+</style>
