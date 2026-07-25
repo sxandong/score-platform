@@ -83,17 +83,18 @@ async function loadStudents() {
     examSubjects.value.forEach((subj: any) => { subjNameToId[subj.subject_name] = subj.id })
 
     // 构建行，有成绩则回填
-    scoreRows.value = students.map((s: any) => {
-      const row: any = { student_id: s.id, student_no: s.student_no, student_name: s.name, scores: {} }
+    const rows = students.map((s: any) => {
+      const scores: Record<number, number> = {}
       const es = existingScores.find((x: any) => Number(x.student_id) === Number(s.id))
       if (es?.subjects) {
         Object.entries(es.subjects).forEach(([subjName, scoreVal]) => {
           const sid = subjNameToId[subjName]
-          if (sid !== undefined) row.scores[sid] = Number(scoreVal)
+          if (sid !== undefined) scores[sid] = Number(scoreVal)
         })
       }
-      return row
+      return { student_id: s.id, student_no: s.student_no, student_name: s.name, scores }
     })
+    scoreRows.value = [...rows]  // 强制触发响应式更新
   } catch (e: any) { ElMessage.error('加载失败: ' + (e.message || '未知错误')) }
 }
 
