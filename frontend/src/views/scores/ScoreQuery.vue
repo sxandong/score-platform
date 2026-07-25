@@ -157,7 +157,7 @@ import { ref, onMounted, computed, nextTick, watch } from 'vue'
 import * as echarts from 'echarts'
 import api from '@/api'
 
-const mode = ref('class')
+const mode = ref('grade')
 const exams = ref([]); const classes = ref([])
 const examId = ref<number | null>(null); const classId = ref<number | null>(null)
 const examId2 = ref<number | null>(null)
