@@ -58,44 +58,45 @@ async function loadStudents() {
   if (!examId.value || !classId.value) {
     scoreRows.value = []; examSubjects.value = []; hasExisting.value = false; return
   }
+
+  scoreRows.value = []; hasExisting.value = false
   try {
-    const exr = await api.get(`/exams/${examId.value}`)
-    examSubjects.value = exr.data.subjects
+    // 并行加载考试科目和学生
+    const [exr, sr] = await Promise.all([
+      api.get(`/exams/${examId.value}`),
+      api.get('/students', { params: { class_id: classId.value, per_page: 100 } }),
+    ])
+    examSubjects.value = exr.data.subjects || []
+    const students = sr.data || []
+    if (!students.length) { ElMessage.warning('该班级没有学生'); return }
 
-    // 加载班级学生
-    const sr = await api.get('/students', { params: { class_id: classId.value, per_page: 100 } })
-    const students = sr.data
-
-    // 检查是否已有成绩
-    hasExisting.value = false
+    // 尝试加载已有成绩
     let existingScores: any[] = []
     try {
       const er = await api.get(`/scores/class/${classId.value}/exam/${examId.value}`)
-      if (er.data?.length) {
-        hasExisting.value = true
-        existingScores = er.data
-      }
+      existingScores = er.data || []
+      hasExisting.value = existingScores.length > 0
     } catch {}
 
-    // 构建科目名称→ID映射
+    // 科目名称→ID映射
     const subjNameToId: Record<string, number> = {}
     examSubjects.value.forEach((subj: any) => { subjNameToId[subj.subject_name] = subj.id })
 
-    // 构建行数据(有现有成绩则回填)
+    // 构建行，有成绩则回填
     scoreRows.value = students.map((s: any) => {
       const row: any = { student_id: s.id, student_no: s.student_no, student_name: s.name, scores: {} }
-      if (hasExisting.value && existingScores.length) {
+      if (hasExisting.value) {
         const es = existingScores.find((x: any) => Number(x.student_id) === Number(s.id))
         if (es?.subjects) {
-          for (const [subjName, scoreVal] of Object.entries(es.subjects)) {
+          Object.entries(es.subjects).forEach(([subjName, scoreVal]) => {
             const sid = subjNameToId[subjName]
             if (sid !== undefined) row.scores[sid] = Number(scoreVal)
-          }
+          })
         }
       }
       return row
     })
-  } catch (e: any) { ElMessage.error(e.message) }
+  } catch (e: any) { ElMessage.error('加载失败: ' + (e.message || '未知错误')) }
 }
 
 async function submitScores() {
