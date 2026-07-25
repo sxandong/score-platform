@@ -64,6 +64,12 @@ const router = createRouter({
           meta: { title: '成绩查询', roles: ['admin', 'director', 'teacher'] },
         },
         {
+          path: 'scores/cutoffs',
+          name: 'score-cutoffs',
+          component: () => import('@/views/scores/ScoreCutoffs.vue'),
+          meta: { title: '分数线设置', roles: ['admin', 'director', 'teacher'] },
+        },
+        {
           path: 'analysis/class-compare',
           name: 'class-compare',
           component: () => import('@/views/analysis/ClassCompare.vue'),

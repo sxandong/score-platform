@@ -77,6 +77,42 @@ async def exam_stats(
     return success_response(data={"scores": row[0], "subjects": row[1]})
 
 
+@router.get("/{exam_id}/cutoffs")
+async def get_cutoffs(
+    exam_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin", "director", "teacher")),
+):
+    """计算考试分数线: 特控线(前20%), 一段线(前60%)"""
+    from sqlalchemy import text
+    # 查总分排名人数
+    result = await db.execute(text(
+        "SELECT COUNT(*) FROM rank_snapshots WHERE exam_id=:eid AND rank_type='total'"
+    ), {"eid": exam_id})
+    total = result.scalar_one()
+
+    if not total:
+        return success_response(data={"total": 0, "cutoffs": []})
+
+    # 计算各百分位分数
+    cutoffs = []
+    for pct, name in [(0.2, "特控线(前20%)"), (0.6, "一段线(前60%)")]:
+        rank_pos = max(1, int(total * pct))
+        result = await db.execute(text(
+            "SELECT total_score FROM rank_snapshots WHERE exam_id=:eid AND rank_type='total'"
+            " ORDER BY grade_rank ASC LIMIT 1 OFFSET :offset"
+        ), {"eid": exam_id, "offset": rank_pos - 1})
+        row = result.fetchone()
+        cutoffs.append({
+            "name": name,
+            "percentile": f"前{int(pct*100)}%",
+            "rank": rank_pos,
+            "score": float(row[0]) if row else 0,
+        })
+
+    return success_response(data={"total": total, "cutoffs": cutoffs})
+
+
 @router.delete("/{exam_id}")
 async def delete_exam(
     exam_id: int,
