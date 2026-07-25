@@ -1,5 +1,6 @@
 """Exams 模块路由"""
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
