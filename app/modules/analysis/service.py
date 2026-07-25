@@ -230,6 +230,7 @@ async def get_ranks(
     for rs, sname, sno, cname in result.all():
         row = {
             "rank": rs.grade_rank,
+            "class_rank": rs.class_rank,
             "student_id": rs.student_id,
             "student_name": sname,
             "student_no": sno,
