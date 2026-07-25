@@ -84,51 +84,27 @@ async def get_cutoffs(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role("admin", "director", "teacher")),
 ):
-    """获取/自动计算分数线"""
+    """获取已设置的分数线"""
     from sqlalchemy import text
 
-    # 先查是否有手动设置的值
     result = await db.execute(text(
-        "SELECT cutoff_type, score, total_students FROM score_cutoffs WHERE exam_id=:eid"
+        "SELECT cutoff_type, score FROM score_cutoffs WHERE exam_id=:eid"
     ), {"eid": exam_id})
-    saved = {row[0]: {"score": float(row[1]), "total": row[2]} for row in result.fetchall()}
-
-    # 查参考总人数
-    result = await db.execute(text(
-        "SELECT COUNT(*) FROM rank_snapshots WHERE exam_id=:eid AND rank_type='total'"
-    ), {"eid": exam_id})
-    total = result.scalar_one()
+    saved: dict[str, float] = {row[0]: float(row[1]) for row in result.fetchall()}
 
     CUTOFF_TYPES = [
         ("score_930", "930分数线"),
         ("special", "特控线(前20%)"),
         ("first", "一段线(前60%)"),
     ]
-    default_pcts = {"special": 0.2, "first": 0.6}
-
     cutoffs = []
     for ct, name in CUTOFF_TYPES:
-        if ct in saved:
-            cutoffs.append({"type": ct, "name": name, "score": saved[ct]["score"], "manual": True})
-        elif ct == "score_930":
-            cutoffs.append({"type": ct, "name": name, "score": None, "manual": False})
-        elif total and ct in default_pcts:
-            pct = default_pcts[ct]
-            rank_pos = max(1, int(total * pct))
-            result2 = await db.execute(text(
-                "SELECT total_score FROM rank_snapshots WHERE exam_id=:eid AND rank_type='total'"
-                " ORDER BY grade_rank ASC LIMIT 1 OFFSET :off"
-            ), {"eid": exam_id, "off": rank_pos - 1})
-            row = result2.fetchone()
-            cutoffs.append({
-                "type": ct, "name": name,
-                "score": float(row[0]) if row else None,
-                "manual": False,
-            })
-        else:
-            cutoffs.append({"type": ct, "name": name, "score": None, "manual": False})
+        cutoffs.append({
+            "type": ct, "name": name,
+            "score": saved.get(ct),
+        })
 
-    return success_response(data={"total": total, "cutoffs": cutoffs})
+    return success_response(data={"cutoffs": cutoffs})
 
 
 class CutoffSave(BaseModel):
