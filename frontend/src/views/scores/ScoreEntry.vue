@@ -75,17 +75,20 @@ async function loadStudents() {
       }
     } catch {}
 
+    // 构建科目名称→ID映射
+    const subjNameToId: Record<string, number> = {}
+    examSubjects.value.forEach((subj: any) => { subjNameToId[subj.subject_name] = subj.id })
+
     // 构建行数据(有现有成绩则回填)
     scoreRows.value = students.map((s: any) => {
       const row: any = { student_id: s.id, student_no: s.student_no, student_name: s.name, scores: {} }
       if (hasExisting.value) {
         const es = existingScores.find((x: any) => x.student_id === s.id)
         if (es?.subjects) {
-          examSubjects.value.forEach((subj: any) => {
-            if (es.subjects[subj.subject_name] !== undefined) {
-              row.scores[subj.id] = es.subjects[subj.subject_name]
-            }
-          })
+          for (const [subjName, scoreVal] of Object.entries(es.subjects)) {
+            const sid = subjNameToId[subjName]
+            if (sid !== undefined) row.scores[sid] = scoreVal
+          }
         }
       }
       return row
