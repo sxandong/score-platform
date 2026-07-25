@@ -70,8 +70,8 @@
       </el-alert>
       <div style="overflow-x:auto;width:100%">
       <el-table :data="scoreData" border stripe>
-        <el-table-column prop="exam_name" label="考试" width="200" fixed />
-        <el-table-column prop="exam_date" label="日期" width="100" />
+        <el-table-column prop="exam_name" label="考试" width="220" fixed />
+        <el-table-column prop="exam_date" label="日期" width="120" />
         <el-table-column v-for="sn in visibleSubjs" :key="sn" :label="sn" width="72">
           <template #default="{row}">{{ row.subjects[sn] }}</template>
         </el-table-column>

@@ -22,7 +22,7 @@
     <el-table :data="students" border stripe v-loading="loading" @selection-change="(v:any)=>selected=v">
       <el-table-column type="selection" width="40" />
       <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column prop="student_no" label="学籍号" width="120" />
+      <el-table-column prop="student_no" label="学籍号" width="130" />
       <el-table-column prop="name" label="姓名" width="100" />
       <el-table-column prop="class_name" label="班级" width="120" />
       <el-table-column prop="status" label="状态" width="80">
