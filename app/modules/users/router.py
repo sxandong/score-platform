@@ -71,7 +71,7 @@ async def update_user(
     return success_response(data=_user_to_dict(user), message="用户更新成功")
 
 
-@router.get("/template")
+@router.get("/download-template")  # 公开访问
 async def download_template():
     """下载教师导入模板"""
     import pandas as pd

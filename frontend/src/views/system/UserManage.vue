@@ -89,7 +89,7 @@ async function saveUser() {
 }
 
 function downloadTemplate() {
-  window.open('/api/users/template', '_blank')
+  window.open('/api/users/download-template', '_blank')
 }
 
 async function handleImport(file: File) {
