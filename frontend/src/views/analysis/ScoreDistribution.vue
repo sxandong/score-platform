@@ -11,11 +11,9 @@
     <el-card v-if="examId" v-loading="loading">
       <div style="overflow-x:auto">
       <el-table :data="tableData" border stripe size="small">
-        <el-table-column prop="threshold" label="分数段" width="90" fixed>
-          <template #default="{row}">≥{{ row.threshold }}</template>
-        </el-table-column>
-        <el-table-column v-for="subj in subjects" :key="subj" :label="subj" width="80">
-          <template #default="{row}">{{ row[subj] || 0 }}</template>
+        <el-table-column prop="subject" label="科目" width="90" fixed />
+        <el-table-column v-for="t in thresholds" :key="t" :label="'≥'+t" width="70">
+          <template #default="{row}">{{ row['t_'+t] || 0 }}</template>
         </el-table-column>
       </el-table>
       </div>
@@ -43,16 +41,17 @@ async function loadData() {
     const r = await api.get('/analysis/score-distribution', { params: { exam_id: examId.value } })
     const data = r.data || []
 
-    // 提取科目列表
-    const subjSet = new Set<string>()
-    data.forEach((d: any) => subjSet.add(d.subject))
-    subjects.value = [...subjSet].sort()
+    const SUBJ_ORDER = ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术']
+    const allThresholds = [...new Set(data.map((d: any) => d.threshold))].sort((a:any,b:any)=>b-a)
+    thresholds.value = allThresholds
 
-    // 按threshold分组
-    const thresholds = [...new Set(data.map((d: any) => d.threshold))].sort((a:any,b:any)=>b-a)
-    tableData.value = thresholds.map(t => {
-      const row: any = { threshold: t }
-      data.filter((d: any) => d.threshold === t).forEach((d: any) => { row[d.subject] = d.count })
+    // 转置: 行=科目, 列=分数段
+    tableData.value = SUBJ_ORDER.filter(sn => data.some((d:any) => d.subject === sn)).map(sn => {
+      const row: any = { subject: sn }
+      allThresholds.forEach(t => {
+        const found = data.find((d: any) => d.threshold === t && d.subject === sn)
+        row['t_'+t] = found ? found.count : 0
+      })
       return row
     })
   } catch {} finally { loading.value = false }
