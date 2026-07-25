@@ -27,7 +27,7 @@ import { ref, onMounted } from 'vue'
 import api from '@/api'
 
 const exams = ref([]); const examId = ref<number | null>(null)
-const loading = ref(false); const subjects = ref<string[]>([])
+const loading = ref(false); const thresholds = ref<number[]>([])
 const tableData = ref<any[]>([])
 
 onMounted(async () => {
