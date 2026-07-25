@@ -329,7 +329,8 @@ function drawCharts(data: any[], numSid: number) {
 :deep(.el-table .el-table__row:hover:nth-child(even) > td) { background: #d9ecff !important; }
 :deep(.el-table .el-table__row:hover:nth-child(odd) > td) { background: #d9ecff !important; }
 /* 排名列高亮 */
-:deep(.el-table td) { transition: background .15s; }
+:deep(.el-table td) { transition: background .15s; text-align: center; }
+:deep(.el-table th.el-table__cell) { text-align: center; }
 /* 得分单元格 */
 .score-cell { font-weight: 500; }
 .score-high { color: var(--edu-green); font-weight: 700; }
