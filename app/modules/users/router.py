@@ -1,6 +1,8 @@
 """Users 模块路由"""
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
+import pandas as pd
+from io import BytesIO
 
 from app.dependencies import get_db
 from app.core.security import require_role
@@ -67,3 +69,50 @@ async def update_user(
 ):
     user = await service.update_user_service(db, user_id, req)
     return success_response(data=_user_to_dict(user), message="用户更新成功")
+
+
+@router.post("/batch")
+async def batch_import_users(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    """Excel批量导入教师账号: 列=用户名,姓名[,密码]"""
+    content = await file.read()
+    try:
+        df = pd.read_excel(BytesIO(content))
+    except Exception as e:
+        return success_response(data={}, message=f"Excel解析失败: {e}")
+
+    from app.models.user import User, Role, user_roles
+    from app.core.security import hash_password
+    from sqlalchemy import select as sa_select
+
+    result = await db.execute(sa_select(Role).where(Role.code == "teacher"))
+    teacher_role = result.scalar_one_or_none()
+
+    created, skipped = 0, 0
+    for _, row in df.iterrows():
+        username = str(row.get("用户名", row.get("username", ""))).strip()
+        real_name = str(row.get("姓名", row.get("name", row.get("real_name", "")))).strip()
+        if not username or not real_name:
+            skipped += 1; continue
+
+        # 检查是否已存在
+        result = await db.execute(sa_select(User).where(User.username == username))
+        if result.scalar_one_or_none():
+            skipped += 1; continue
+
+        pwd = str(row.get("密码", row.get("password", "123456"))).strip()
+        user = User(username=username, password_hash=hash_password(pwd),
+                    real_name=real_name)
+        db.add(user)
+        await db.flush()
+        if teacher_role:
+            await db.execute(user_roles.insert().values(
+                user_id=user.id, role_id=teacher_role.id))
+        created += 1
+
+    await db.flush()
+    return success_response(data={"created": created, "skipped": skipped},
+        message=f"导入完成: 新增{created}个教师, 跳过{skipped}个")

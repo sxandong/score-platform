@@ -1,7 +1,12 @@
 <template>
   <div>
     <h3>用户管理</h3>
-    <el-button type="primary" @click="showDialog = true" style="margin-bottom:16px">新增用户</el-button>
+    <div style="margin-bottom:16px">
+      <el-button type="primary" @click="showDialog = true">新增用户</el-button>
+      <el-upload :show-file-list="false" :before-upload="handleImport" accept=".xlsx,.xls" style="display:inline-block;margin-left:8px">
+        <el-button type="success">Excel导入教师</el-button>
+      </el-upload>
+    </div>
     <el-table :data="users" border stripe v-loading="loading">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="username" label="用户名" />
@@ -80,6 +85,15 @@ async function saveUser() {
     form.username = ''; form.password = ''; form.real_name = ''; form.role_codes = []
     loadUsers(page.value)
   } catch (e: any) { ElMessage.error(e.message) }
+}
+
+async function handleImport(file: File) {
+  const fd = new FormData(); fd.append('file', file)
+  try {
+    const r = await api.post('/users/batch', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    ElMessage.success(r.message); loadUsers(page.value)
+  } catch (e: any) { ElMessage.error(e.message) }
+  return false
 }
 
 onMounted(() => loadUsers())
