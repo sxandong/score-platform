@@ -323,8 +323,11 @@ function drawCharts(data: any[], numSid: number) {
   background: linear-gradient(180deg, #f0f5fa, #e8f0fe);
   color: var(--edu-blue); font-weight: 600; font-size: 13px;
 }
-:deep(.el-table .el-table__row:hover > td) { background: #ecf5ff !important; }
-:deep(.el-table .el-table__row--striped td) { background: #fafcfd; }
+:deep(.el-table .el-table__row:hover > td) { background: #d9ecff !important; }
+:deep(.el-table .el-table__row:nth-child(even) > td) { background: #f8fafc; }
+:deep(.el-table .el-table__row:nth-child(odd) > td) { background: #ffffff; }
+:deep(.el-table .el-table__row:hover:nth-child(even) > td) { background: #d9ecff !important; }
+:deep(.el-table .el-table__row:hover:nth-child(odd) > td) { background: #d9ecff !important; }
 /* 排名列高亮 */
 :deep(.el-table td) { transition: background .15s; }
 /* 得分单元格 */
