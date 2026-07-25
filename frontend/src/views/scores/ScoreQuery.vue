@@ -4,6 +4,7 @@
     <el-tabs v-model="mode" @tab-change="onTabChange">
       <el-tab-pane label="按班级查询" name="class" />
       <el-tab-pane label="按学生查询" name="student" />
+      <el-tab-pane label="按年级查询" name="grade" />
     </el-tabs>
 
     <!-- 按班级 -->
@@ -114,8 +115,29 @@
       </div>
     </div>
 
-    <el-empty v-if="!scoreData.length && !studentDetail"
-      :description="mode==='class' ? '请选择考试和班级后查询' : '搜索学生即可查看成绩'" />
+    <!-- 按年级查询 -->
+    <el-form :inline="true" v-if="mode==='grade'">
+      <el-form-item label="考试"><el-select v-model="gradeExamId" placeholder="选择考试" style="width:250px">
+        <el-option v-for="e in exams" :key="e.id" :label="e.name" :value="e.id" /></el-select>
+      </el-form-item>
+      <el-form-item label="前N名"><el-input-number v-model="gradeTopN" :min="1" :max="500" style="width:130px" /></el-form-item>
+      <el-form-item><el-button type="primary" @click="loadGradeRanks">查询</el-button></el-form-item>
+    </el-form>
+
+    <div style="overflow-x:auto;width:100%">
+    <el-table :data="gradeData" border stripe v-if="mode==='grade' && gradeData.length" v-loading="loading">
+      <el-table-column prop="rank" label="排名" width="70" fixed>
+        <template #default="{row}"><span :class="rankClass(row.rank)">{{ row.rank }}</span></template>
+      </el-table-column>
+      <el-table-column prop="student_no" label="学籍号" width="130" />
+      <el-table-column prop="student_name" label="姓名" width="100" />
+      <el-table-column prop="class_name" label="班级" width="130" />
+      <el-table-column prop="total_score" label="总分" width="90" />
+    </el-table>
+    </div>
+
+    <el-empty v-if="!scoreData.length && !studentDetail && !gradeData.length"
+      :description="mode==='class' ? '请选择考试和班级后查询' : mode==='grade' ? '请选择考试并输入N值查询' : '搜索学生即可查看成绩'" />
   </div>
 </template>
 
@@ -133,6 +155,9 @@ const studentResults = ref<any[]>([]); const selectedStudentId = ref<number | nu
 const scoreData = ref<any[]>([]); const studentDetail = ref<any>(null)
 const loading = ref(false)
 const rankCache = ref<Record<string, any[]>>({})
+const gradeExamId = ref<number | null>(null)
+const gradeTopN = ref(20)
+const gradeData = ref<any[]>([])
 
 const ALL_SUBJS = ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术']
 const visibleSubjs = computed(() => {
@@ -153,7 +178,18 @@ function rankClass(v: any): string {
   if (n <= 200) return 'rank-badge rank-mid'
   return ''
 }
-function onTabChange() { scoreData.value = []; studentDetail.value = null; studentResults.value = []; rankCache.value = {} }
+async function loadGradeRanks() {
+  if (!gradeExamId.value) return
+  loading.value = true; gradeData.value = []
+  try {
+    const r = await api.get('/analysis/ranks', {
+      params: { exam_id: gradeExamId.value, rank_type: 'total', per_page: gradeTopN.value }
+    })
+    gradeData.value = r.data || []
+  } catch {} finally { loading.value = false }
+}
+
+function onTabChange() { scoreData.value = []; studentDetail.value = null; studentResults.value = []; rankCache.value = {}; gradeData.value = [] }
 function onExamChange() { studentDetail.value = null; studentResults.value = []; rankCache.value = {} }
 
 onMounted(async () => {
