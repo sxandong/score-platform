@@ -61,13 +61,13 @@ async function loadStudents() {
 
   scoreRows.value = []; hasExisting.value = false
   try {
-    // 并行加载考试科目和学生
     const [exr, sr] = await Promise.all([
       api.get(`/exams/${examId.value}`),
       api.get('/students', { params: { class_id: classId.value, per_page: 100 } }),
     ])
-    examSubjects.value = exr.data.subjects || []
+    examSubjects.value = exr.data?.subjects || []
     const students = sr.data || []
+    console.log('loadStudents:', { examId: examId.value, classId: classId.value, subjects: examSubjects.value.length, students: students.length })
     if (!students.length) { ElMessage.warning('该班级没有学生'); return }
 
     // 尝试加载已有成绩
@@ -76,6 +76,7 @@ async function loadStudents() {
       const er = await api.get(`/scores/class/${classId.value}/exam/${examId.value}`)
       existingScores = er.data || []
       hasExisting.value = existingScores.length > 0
+      console.log('existingScores:', existingScores.length, 'students, sample:', existingScores[0])
     } catch {}
 
     // 科目名称→ID映射
