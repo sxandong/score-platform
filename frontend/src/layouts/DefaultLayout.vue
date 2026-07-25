@@ -26,8 +26,8 @@
           <template #title><el-icon><Edit /></el-icon><span>成绩管理</span></template>
           <el-menu-item v-if="auth.hasPermission('score:create')" index="/scores/entry">成绩录入</el-menu-item>
           <el-menu-item v-if="auth.hasPermission('score:create')" index="/scores/import">批量导入</el-menu-item>
-          <el-menu-item v-if="auth.hasPermission('score:read')" index="/scores/query">成绩查询</el-menu-item>
           <el-menu-item index="/scores/cutoffs">分数线设置</el-menu-item>
+          <el-menu-item v-if="auth.hasPermission('score:read')" index="/scores/query">成绩查询</el-menu-item>
         </el-sub-menu>
         <el-sub-menu v-if="auth.hasPermission('analysis:view')" index="analysis">
           <template #title><el-icon><TrendCharts /></el-icon><span>统计分析</span></template>
