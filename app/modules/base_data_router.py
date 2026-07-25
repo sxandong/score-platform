@@ -367,8 +367,12 @@ async def batch_delete_students(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role("admin")),
 ):
-    from sqlalchemy import delete as sql_delete
-    await db.execute(sql_delete(Student).where(Student.id.in_(req.ids)))
+    from sqlalchemy import text
+    ids = tuple(req.ids)
+    await db.execute(text("DELETE FROM score_details WHERE score_id IN (SELECT id FROM scores WHERE student_id IN :ids)"), {"ids": ids})
+    await db.execute(text("DELETE FROM rank_snapshots WHERE student_id IN :ids"), {"ids": ids})
+    await db.execute(text("DELETE FROM scores WHERE student_id IN :ids"), {"ids": ids})
+    await db.execute(text("DELETE FROM students WHERE id IN :ids"), {"ids": ids})
     await db.commit()
     return success_response(message=f"已删除{len(req.ids)}个学生")
 
@@ -382,7 +386,12 @@ async def delete_student(
     result = await db.execute(select(Student).where(Student.id == student_id))
     s = result.scalar_one_or_none()
     if not s: raise NotFoundException("学生不存在")
-    await db.delete(s); await db.flush()
+    # 先删除关联的成绩数据
+    from sqlalchemy import text
+    await db.execute(text("DELETE FROM score_details WHERE score_id IN (SELECT id FROM scores WHERE student_id=:sid)"), {"sid": student_id})
+    await db.execute(text("DELETE FROM rank_snapshots WHERE student_id=:sid"), {"sid": student_id})
+    await db.execute(text("DELETE FROM scores WHERE student_id=:sid"), {"sid": student_id})
+    await db.delete(s); await db.commit()
     return success_response(message="学生已删除")
 
 @router.post("/students/batch")
