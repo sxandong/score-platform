@@ -82,12 +82,12 @@ async function loadStudents() {
     // 构建行数据(有现有成绩则回填)
     scoreRows.value = students.map((s: any) => {
       const row: any = { student_id: s.id, student_no: s.student_no, student_name: s.name, scores: {} }
-      if (hasExisting.value) {
-        const es = existingScores.find((x: any) => x.student_id === s.id)
+      if (hasExisting.value && existingScores.length) {
+        const es = existingScores.find((x: any) => Number(x.student_id) === Number(s.id))
         if (es?.subjects) {
           for (const [subjName, scoreVal] of Object.entries(es.subjects)) {
             const sid = subjNameToId[subjName]
-            if (sid !== undefined) row.scores[sid] = scoreVal
+            if (sid !== undefined) row.scores[sid] = Number(scoreVal)
           }
         }
       }
