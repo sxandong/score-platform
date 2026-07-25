@@ -2,9 +2,9 @@
   <div>
     <h3>成绩查询</h3>
     <el-tabs v-model="mode" @tab-change="onTabChange">
+      <el-tab-pane label="按年级查询" name="grade" />
       <el-tab-pane label="按班级查询" name="class" />
       <el-tab-pane label="按学生查询" name="student" />
-      <el-tab-pane label="按年级查询" name="grade" />
     </el-tabs>
 
     <!-- 按班级 -->
@@ -132,7 +132,18 @@
       <el-table-column prop="student_no" label="学籍号" width="130" />
       <el-table-column prop="student_name" label="姓名" width="100" />
       <el-table-column prop="class_name" label="班级" width="130" />
+      <el-table-column v-for="sn in gradeSubjs" :key="sn" :label="sn" width="72">
+        <template #default="{row}">{{ row.subjects?.[sn] }}</template>
+      </el-table-column>
       <el-table-column prop="total_score" label="总分" width="90" />
+      <el-table-column prop="yuwai_total" label="语数外总分" width="100" />
+      <el-table-column prop="yuwai_rank" label="语数外排名" width="100">
+        <template #default="{row}"><span :class="rankClass(row.yuwai_rank)">{{ row.yuwai_rank }}</span></template>
+      </el-table-column>
+      <el-table-column prop="top3_total" label="7选3总分" width="95" />
+      <el-table-column prop="top3_rank" label="7选3排名" width="95">
+        <template #default="{row}"><span :class="rankClass(row.top3_rank)">{{ row.top3_rank }}</span></template>
+      </el-table-column>
     </el-table>
     </div>
 
@@ -158,6 +169,9 @@ const rankCache = ref<Record<string, any[]>>({})
 const gradeExamId = ref<number | null>(null)
 const gradeTopN = ref(20)
 const gradeData = ref<any[]>([])
+const gradeSubjs = computed(() => {
+  return ALL_SUBJS.filter(sn => gradeData.value.some((r: any) => r.subjects?.[sn] != null))
+})
 
 const ALL_SUBJS = ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术']
 const visibleSubjs = computed(() => {

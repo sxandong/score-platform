@@ -226,6 +226,7 @@ async def get_ranks(
     )
     result = await db.execute(query)
     rows = []
+    ranked_student_ids = []
     for rs, sname, sno, cname in result.all():
         row = {
             "rank": rs.grade_rank,
@@ -238,6 +239,34 @@ async def get_ranks(
         if rs.rank_type == "subject" and rs.subject_id:
             row["subject_name"] = subj_names.get(rs.subject_id, str(rs.subject_id))
         rows.append(row)
+        ranked_student_ids.append(rs.student_id)
+
+    # 如果是总分排名，补充各科成绩 + 语数外/7选3排名
+    if rank_type == "total" and rows:
+        result2 = await db.execute(
+            select(Score).options(selectinload(Score.subject))
+            .where(and_(Score.exam_id == exam_id, Score.student_id.in_(ranked_student_ids))))
+        subj_scores: dict[int, dict] = {}
+        for sc in result2.scalars().all():
+            if sc.student_id not in subj_scores:
+                subj_scores[sc.student_id] = {}
+            sn = sc.subject.name if sc.subject else str(sc.subject_id)
+            subj_scores[sc.student_id][sn] = float(sc.total_score)
+
+        # 补充语数外/7选3排名
+        for rt, key in [("yuwai", "yuwai_rank"), ("top3", "top3_rank")]:
+            result3 = await db.execute(
+                select(RankSnapshot).where(and_(
+                    RankSnapshot.exam_id == exam_id, RankSnapshot.rank_type == rt,
+                    RankSnapshot.student_id.in_(ranked_student_ids))))
+            for rs2 in result3.scalars().all():
+                for row in rows:
+                    if row["student_id"] == rs2.student_id:
+                        row[key] = rs2.grade_rank
+                        row[key.replace("_rank", "_total")] = float(rs2.total_score)
+
+        for row in rows:
+            row["subjects"] = subj_scores.get(row["student_id"], {})
 
     # 总数
     count_q = (
