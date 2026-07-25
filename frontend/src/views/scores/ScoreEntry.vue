@@ -76,7 +76,12 @@ async function loadStudents() {
       const er = await api.get(`/scores/class/${classId.value}/exam/${examId.value}`)
       existingScores = er.data || []
       hasExisting.value = existingScores.length > 0
-      console.log('existingScores:', existingScores.length, 'students, sample:', existingScores[0])
+      console.log('existingScores:', existingScores.length, 'students')
+      if (existingScores.length) {
+        console.log('  sample keys:', Object.keys(existingScores[0]))
+        console.log('  sample subjects:', existingScores[0].subjects)
+        console.log('  sample student_id:', existingScores[0].student_id)
+      }
     } catch {}
 
     // 科目名称→ID映射
@@ -95,7 +100,8 @@ async function loadStudents() {
       }
       return { student_id: s.id, student_no: s.student_no, student_name: s.name, scores }
     })
-    scoreRows.value = [...rows]  // 强制触发响应式更新
+    scoreRows.value = [...rows]
+    console.log('scoreRows:', rows.length, 'students, first row scores:', rows[0]?.scores, 'subjNameToId:', subjNameToId)
   } catch (e: any) { ElMessage.error('加载失败: ' + (e.message || '未知错误')) }
 }
 
