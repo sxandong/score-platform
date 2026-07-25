@@ -42,6 +42,28 @@ async def grade_overview(
     return success_response(data=data)
 
 
+@router.get("/score-distribution")
+async def score_distribution(
+    exam_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin", "director", "teacher")),
+):
+    """各学科分数段统计"""
+    from sqlalchemy import text
+    thresholds = [130, 120, 110, 100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40]
+    result = []
+    for t in thresholds:
+        r = await db.execute(text(
+            "SELECT subj.name, COUNT(sc.id) as cnt FROM scores sc "
+            "JOIN subjects subj ON sc.subject_id = subj.id "
+            "WHERE sc.exam_id = :eid AND sc.total_score >= :th "
+            "GROUP BY subj.name ORDER BY subj.sort_order"
+        ), {"eid": exam_id, "th": t})
+        for row in r.fetchall():
+            result.append({"threshold": t, "subject": row[0], "count": row[1]})
+    return success_response(data=result)
+
+
 @router.get("/ranks")
 async def get_ranks(
     exam_id: int,

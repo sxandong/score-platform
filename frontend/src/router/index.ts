@@ -70,6 +70,12 @@ const router = createRouter({
           meta: { title: '班级对比', roles: ['admin', 'director', 'teacher'] },
         },
         {
+          path: 'analysis/score-distribution',
+          name: 'score-distribution',
+          component: () => import('@/views/analysis/ScoreDistribution.vue'),
+          meta: { title: '分数段统计', roles: ['admin', 'director', 'teacher'] },
+        },
+        {
           path: 'analysis/student-trend',
           name: 'student-trend',
           component: () => import('@/views/analysis/StudentTrend.vue'),
