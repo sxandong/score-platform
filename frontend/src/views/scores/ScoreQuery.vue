@@ -129,9 +129,9 @@
       <el-table-column prop="rank" label="排名" width="70" fixed>
         <template #default="{row}"><span :class="rankClass(row.rank)">{{ row.rank }}</span></template>
       </el-table-column>
-      <el-table-column prop="student_no" label="学籍号" width="130" />
-      <el-table-column prop="student_name" label="姓名" width="100" />
-      <el-table-column prop="class_name" label="班级" width="130" />
+      <el-table-column prop="student_no" label="学籍号" width="130" fixed />
+      <el-table-column prop="student_name" label="姓名" width="100" fixed />
+      <el-table-column prop="class_name" label="班级" width="130" fixed />
       <el-table-column v-for="sn in gradeSubjs" :key="sn" :label="sn" width="72">
         <template #default="{row}">{{ row.subjects?.[sn] }}</template>
       </el-table-column>
