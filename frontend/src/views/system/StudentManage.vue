@@ -30,7 +30,8 @@
       </el-table-column>
       <el-table-column prop="electives" label="选科" width="160">
         <template #default="{ row }">
-          <el-tag v-for="e in (row.electives||'').split(',').filter(Boolean)" :key="e" size="small" type="warning" style="margin:1px">{{ e }}</el-tag>
+          <el-tag v-for="(e,i) in (row.electives||'').split(',').filter(Boolean)" :key="e" size="small"
+            :type="['primary','success','warning'][i] || 'danger'" style="margin:1px">{{ e }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="180">
