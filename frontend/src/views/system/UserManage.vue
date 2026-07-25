@@ -3,6 +3,7 @@
     <h3>用户管理</h3>
     <div style="margin-bottom:16px">
       <el-button type="primary" @click="showDialog = true">新增用户</el-button>
+      <el-button @click="downloadTemplate" style="margin-left:8px">下载模板</el-button>
       <el-upload :show-file-list="false" :before-upload="handleImport" accept=".xlsx,.xls" style="display:inline-block;margin-left:8px">
         <el-button type="success">Excel导入教师</el-button>
       </el-upload>
@@ -85,6 +86,10 @@ async function saveUser() {
     form.username = ''; form.password = ''; form.real_name = ''; form.role_codes = []
     loadUsers(page.value)
   } catch (e: any) { ElMessage.error(e.message) }
+}
+
+function downloadTemplate() {
+  window.open('/api/users/template', '_blank')
 }
 
 async function handleImport(file: File) {

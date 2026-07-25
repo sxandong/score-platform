@@ -71,6 +71,22 @@ async def update_user(
     return success_response(data=_user_to_dict(user), message="用户更新成功")
 
 
+@router.get("/template")
+async def download_template():
+    """下载教师导入模板"""
+    import pandas as pd
+    from io import BytesIO
+    df = pd.DataFrame(columns=["用户名", "姓名", "密码"])
+    df.loc[0] = ["teacher01", "张老师", "123456"]
+    df.loc[1] = ["teacher02", "李老师", ""]
+    output = BytesIO()
+    df.to_excel(output, index=False)
+    output.seek(0)
+    return StreamingResponse(output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=教师导入模板.xlsx"})
+
+
 @router.post("/batch")
 async def batch_import_users(
     file: UploadFile = File(...),
