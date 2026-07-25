@@ -67,7 +67,6 @@ async function loadStudents() {
     ])
     examSubjects.value = exr.data?.subjects || []
     const students = sr.data || []
-    console.log('loadStudents:', { examId: examId.value, classId: classId.value, subjects: examSubjects.value.length, students: students.length })
     if (!students.length) { ElMessage.warning('该班级没有学生'); return }
 
     // 尝试加载已有成绩
@@ -76,17 +75,11 @@ async function loadStudents() {
       const er = await api.get(`/scores/class/${classId.value}/exam/${examId.value}`)
       existingScores = er.data || []
       hasExisting.value = existingScores.length > 0
-      console.log('existingScores:', existingScores.length, 'students')
-      if (existingScores.length) {
-        console.log('  sample keys:', Object.keys(existingScores[0]))
-        console.log('  sample subjects:', existingScores[0].subjects)
-        console.log('  sample student_id:', existingScores[0].student_id)
-      }
     } catch {}
 
     // 科目名称→ID映射
     const subjNameToId: Record<string, number> = {}
-    examSubjects.value.forEach((subj: any) => { subjNameToId[subj.subject_name] = subj.id })
+    examSubjects.value.forEach((subj: any) => { subjNameToId[subj.subject_name] = subj.subject_id })
 
     // 构建行，有成绩则回填
     const rows = students.map((s: any) => {
@@ -101,7 +94,6 @@ async function loadStudents() {
       return { student_id: s.id, student_no: s.student_no, student_name: s.name, scores }
     })
     scoreRows.value = [...rows]
-    console.log('scoreRows:', rows.length, 'students, first row scores:', rows[0]?.scores, 'subjNameToId:', subjNameToId)
   } catch (e: any) { ElMessage.error('加载失败: ' + (e.message || '未知错误')) }
 }
 
