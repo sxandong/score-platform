@@ -82,8 +82,7 @@ tr:nth-child(even){{background:#fafcfd}}
 
     return StreamingResponse(BytesIO(html.encode('utf-8')),
         media_type="text/html; charset=utf-8",
-        headers={"Content-Disposition":
-                 f"inline; filename={student.name}_成绩报告.html"})
+        headers={"Content-Disposition": "inline; filename=student_report.html"})
 
 
 @router.get("/score-sheet")
