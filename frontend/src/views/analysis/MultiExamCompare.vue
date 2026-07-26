@@ -10,44 +10,26 @@
     </el-form>
 
     <el-card v-if="selectedExams.length>=2 && compareData.exams" v-loading="loading">
-      <template #header><span style="font-weight:600">班级对比表</span></template>
+      <template #header><span style="font-weight:600">班级达线人数对比</span></template>
 
       <div class="scroll-wrap">
-      <!-- 930线 -->
-      <h4 style="margin:8px 0">930分数线人数</h4>
-      <el-table :data="makeRows('c930')" border stripe size="small" :cell-style="{textAlign:'center'}">
-        <el-table-column prop="label" label="班级" width="110" />
-        <el-table-column v-for="e in compareData.exams" :key="e.id" :label="(e.name||'').substring(0,14)" width="90">
-          <template #default="{row}"><span :class="numClass(row[e.id])">{{ row[e.id]||0 }}</span></template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 特控线 -->
-      <h4 style="margin:16px 0 8px">特控线上线人数</h4>
-      <el-table :data="makeRows('special')" border stripe size="small" :cell-style="{textAlign:'center'}">
-        <el-table-column prop="label" label="班级" width="110" />
-        <el-table-column v-for="e in compareData.exams" :key="e.id" :label="(e.name||'').substring(0,14)" width="90">
-          <template #default="{row}"><span :class="numClass(row[e.id])">{{ row[e.id]||0 }}</span></template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 一段线 -->
-      <h4 style="margin:16px 0 8px">一段线上线人数</h4>
-      <el-table :data="makeRows('first')" border stripe size="small" :cell-style="{textAlign:'center'}">
-        <el-table-column prop="label" label="班级" width="110" />
-        <el-table-column v-for="e in compareData.exams" :key="e.id" :label="(e.name||'').substring(0,14)" width="90">
+      <el-table :data="mergedRows" border stripe size="small" :cell-style="{textAlign:'center'}">
+        <el-table-column prop="className" label="班级" width="110" fixed />
+        <el-table-column prop="typeName" label="指标" width="90" fixed />
+        <el-table-column v-for="e in compareData.exams" :key="e.id" :label="(e.name||'').substring(0,14)" width="85">
           <template #default="{row}"><span :class="numClass(row[e.id])">{{ row[e.id]||0 }}</span></template>
         </el-table-column>
       </el-table>
       </div>
 
-      <!-- 趋势图 -->
-      <h4 style="margin:20px 0 8px">930线人数对比趋势</h4>
-      <div id="chart-930" style="width:100%;height:350px"></div>
-      <h4 style="margin:20px 0 8px">特控线人数对比趋势</h4>
-      <div id="chart-special" style="width:100%;height:350px"></div>
-      <h4 style="margin:20px 0 8px">一段线人数对比趋势</h4>
-      <div id="chart-first" style="width:100%;height:350px"></div>
+      <el-form :inline="true" style="margin:16px 0">
+        <el-form-item label="图表指标"><el-select v-model="chartMetric" @change="drawChart">
+          <el-option label="930分数线人数" value="c930" />
+          <el-option label="特控线上线人数" value="special" />
+          <el-option label="一段线上线人数" value="first" />
+        </el-select></el-form-item>
+      </el-form>
+      <div id="chart-main" style="width:100%;height:400px"></div>
     </el-card>
     <el-empty v-else description="请至少选择2次考试" />
   </div>
@@ -60,67 +42,71 @@ import api from '@/api'
 
 const exams = ref([]); const selectedExams = ref<number[]>([])
 const compareData = ref<any>({}); const loading = ref(false)
+const chartMetric = ref('c930')
 
 onMounted(async () => {
   try { const r = await api.get('/exams'); exams.value = r.data } catch {}
 })
 
+const TYPE_NAMES: Record<string,string> = { c930: '930线', special: '特控线', first: '一段线' }
+
+const mergedRows = computed(() => {
+  const classes = compareData.value.classes || []
+  const data = compareData.value.data || {}
+  const rows: any[] = []
+  for (const c of classes) {
+    for (const [key, name] of Object.entries(TYPE_NAMES)) {
+      const row: any = { className: c.name, typeName: name }
+      for (const eid of selectedExams.value) {
+        const examData = data[String(eid)]
+        if (examData) {
+          const cc = examData.class_counts?.find((x: any) => x.class_id === c.id)
+          row[eid] = cc ? (cc[key] || 0) : 0
+        }
+      }
+      rows.push(row)
+    }
+  }
+  return rows
+})
+
 async function loadData() {
   if (selectedExams.value.length < 2) return
-  loading.value = true
+  loading.value = true; compareData.value = {}
   try {
     const ids = selectedExams.value.join(',')
     const r = await api.get('/analysis/multi-exam-compare', { params: { exam_ids: ids } })
     compareData.value = r.data || {}
     await nextTick(); await new Promise(r2 => setTimeout(r2, 300))
-    drawCharts()
+    drawChart()
   } catch {} finally { loading.value = false }
 }
 
-function makeRows(key: string) {
+function drawChart() {
+  const el = document.getElementById('chart-main'); if (!el) return
+  const examsList = compareData.value.exams || []
   const classes = compareData.value.classes || []
   const data = compareData.value.data || {}
-  return classes.map((c: any) => {
-    const row: any = { label: c.name }
-    for (const eid of selectedExams.value) {
-      const examData = data[String(eid)]
-      if (examData) {
-        const cc = examData.class_counts?.find((x: any) => x.class_id === c.id)
-        row[eid] = cc ? cc[key] : 0
-      }
-    }
-    return row
-  })
-}
+  const key = chartMetric.value
 
-function drawCharts() {
-  const examsList = compareData.value.exams || []
-  const labels = examsList.map((e: any) => (e.name||'').substring(0,14))
-  const classes = compareData.value.classes || []
+  const series = examsList.map((e: any) => ({
+    name: (e.name||'').substring(0,12),
+    type: 'bar',
+    data: classes.map((c: any) => {
+      const cc = data[String(e.id)]?.class_counts?.find((x: any) => x.class_id === c.id)
+      return cc ? (cc[key] || 0) : 0
+    }),
+  }))
 
-  function drawChart(domId: string, key: string) {
-    const el = document.getElementById(domId); if (!el) return
-    const series = classes.map((c: any) => {
-      const vals = examsList.map((e: any) => {
-        const cc = compareData.value.data[String(e.id)]?.class_counts?.find((x: any) => x.class_id === c.id)
-        return cc ? (cc[key] || 0) : 0
-      })
-      return { name: c.name, type: 'line', data: vals, smooth: true }
-    })
-    const inst = echarts.getInstanceByDom(el) || echarts.init(el)
-    inst.setOption({
-      tooltip: { trigger: 'axis' },
-      legend: { top: 0, type: 'scroll' },
-      grid: { left: 50, right: 20, top: 40, bottom: 25 },
-      xAxis: { type: 'category', data: labels },
-      yAxis: { type: 'value', name: '人数', minInterval: 1 },
-      series,
-    }, true)
-  }
-
-  drawChart('chart-930', 'c930')
-  drawChart('chart-special', 'special')
-  drawChart('chart-first', 'first')
+  const inst = echarts.getInstanceByDom(el) || echarts.init(el)
+  inst.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { top: 0, type: 'scroll' },
+    grid: { left: 50, right: 20, top: 40, bottom: 25 },
+    xAxis: { type: 'category', data: classes.map((c: any) => c.name), axisLabel: { rotate: 45 } },
+    yAxis: { type: 'value', name: '人数', minInterval: 1 },
+    series,
+  }, true)
 }
 
 function numClass(v: number): string {
