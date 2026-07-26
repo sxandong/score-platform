@@ -24,7 +24,7 @@
       </div>
 
       <el-form :inline="true" style="margin:16px 0">
-        <el-form-item label="图表指标"><el-select v-model="chartMetric" @change="drawChart" style="width:200px">
+        <el-form-item label="图表指标"><el-select v-model="chartMetric" @change="drawChart" style="width:180px">
           <el-option label="930分数线人数" value="c930" />
           <el-option label="特控线上线人数" value="special" />
           <el-option label="一段线上线人数" value="first" />
