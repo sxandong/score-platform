@@ -33,6 +33,7 @@
       <div style="overflow-x:auto;margin-bottom:16px">
       <el-table :data="excellentRows" border stripe size="small" :cell-style="{textAlign:'center'}">
         <el-table-column prop="label" label="科目" width="80" fixed />
+        <el-table-column prop="total" label="总人数" width="75" />
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="100">
           <template #default="{row}">
             <span :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>
@@ -54,6 +55,7 @@
       <div style="overflow-x:auto">
       <el-table :data="goodRows" border stripe size="small" :cell-style="{textAlign:'center'}">
         <el-table-column prop="label" label="科目" width="80" fixed />
+        <el-table-column prop="total" label="总人数" width="75" />
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="100">
           <template #default="{row}">
             <span :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>
@@ -112,12 +114,12 @@ function _makeSubjRows(type: string) {
   return SUBJ_NAMES.map(sn => {
     const key = `${sn}${type}`
     const items = subjStats.value[key] || []
-    const row: any = { label: sn }
+    const row: any = { label: sn, total: 0 }
     compareData.value.forEach((c: any) => {
       const found = items.find((x: any) => x.class_id === c.id)
       const cnt = found ? found.count : 0
-      const total = c.top100 || 1
-      row[c.id] = { count: cnt, pct: total > 0 ? (cnt / Math.max(1, total) * 100).toFixed(1) : '0.0' }
+      row.total += cnt
+      row[c.id] = { count: cnt, pct: '0' }
     })
     return row
   })
