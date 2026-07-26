@@ -116,7 +116,7 @@ tr:nth-child(even){{background:#f6f8fa}}
 
 <h3>成绩趋势图</h3>
 <div class="chart-row">
-<div class="chart" id="chart-subj"></div>
+<div class="chart-row" id="subj-charts"></div>
 <div class="chart" id="chart-total"></div>
 </div>
 <div class="chart-row">
