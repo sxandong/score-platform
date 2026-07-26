@@ -73,14 +73,16 @@ async def student_report(
 
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
-body{{font-family:"PingFang SC","Microsoft YaHei",sans-serif;font-size:12px;padding:20px}}
-h1{{text-align:center;font-size:18px;margin-bottom:4px}}
-h2{{text-align:center;font-size:14px;color:#666;margin-top:0;margin-bottom:4px}}
-.info{{text-align:center;font-size:12px;margin-bottom:16px;color:#333}}
-table{{width:100%;border-collapse:collapse;font-size:10px}}
-th,td{{border:1px solid #ccc;padding:4px 3px;text-align:center}}
-th{{background:#e8f0fe;font-weight:bold}}
-tr:nth-child(even){{background:#fafcfd}}
+body{{font-family:"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;padding:20px;color:#333}}
+h1{{text-align:center;font-size:22px;margin-bottom:4px;color:#1a5490}}
+h2{{text-align:center;font-size:14px;color:#999;margin-top:0;margin-bottom:8px}}
+.info{{text-align:center;font-size:14px;margin-bottom:20px;color:#555}}
+.info span{{margin:0 12px}}
+table{{width:100%;border-collapse:collapse;font-size:13px}}
+th,td{{border:1px solid #d0d7de;padding:6px 5px;text-align:center}}
+th{{background:#1a5490;color:#fff;font-weight:600;font-size:13px}}
+tr:nth-child(even){{background:#f6f8fa}}
+tr:hover{{background:#e8f0fe}}
 @page{{size:A4 landscape;margin:10mm}}
 </style></head><body>
 <h1>学生成绩报告</h1>
