@@ -10,31 +10,12 @@
 
     <el-card v-if="examId && compareData.length" v-loading="loading">
       <div style="overflow-x:auto">
-      <el-table :data="compareData" border stripe size="small">
-        <el-table-column prop="name" label="班级" width="120" fixed />
-        <el-table-column v-if="cutoffs.score_930" :label="'≥'+cutoffs.score_930" width="80">
-          <template #default="{row}"><span :class="numClass(row.count_930)">{{ row.count_930 || 0 }}</span></template>
-        </el-table-column>
-        <el-table-column v-if="cutoffs.special" :label="'特控≥'+cutoffs.special" width="100">
-          <template #default="{row}"><span :class="numClass(row.count_special)">{{ row.count_special || 0 }}</span></template>
-        </el-table-column>
-        <el-table-column label="前20" width="65">
-          <template #default="{row}"><span :class="numClass(row.top20)">{{ row.top20 || 0 }}</span></template>
-        </el-table-column>
-        <el-table-column label="前30" width="65">
-          <template #default="{row}"><span :class="numClass(row.top30)">{{ row.top30 || 0 }}</span></template>
-        </el-table-column>
-        <el-table-column label="前50" width="65">
-          <template #default="{row}"><span :class="numClass(row.top50)">{{ row.top50 || 0 }}</span></template>
-        </el-table-column>
-        <el-table-column label="前80" width="65">
-          <template #default="{row}"><span :class="numClass(row.top80)">{{ row.top80 || 0 }}</span></template>
-        </el-table-column>
-        <el-table-column label="前100" width="70">
-          <template #default="{row}"><span :class="numClass(row.top100)">{{ row.top100 || 0 }}</span></template>
-        </el-table-column>
-        <el-table-column v-if="cutoffs.first" :label="'一段≥'+cutoffs.first" width="100">
-          <template #default="{row}"><span :class="numClass(row.count_first)">{{ row.count_first || 0 }}</span></template>
+      <el-table :data="transposed" border stripe size="small" :cell-style="{textAlign:'center'}">
+        <el-table-column prop="label" label="指标" width="140" fixed />
+        <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="90">
+          <template #default="{row}">
+            <span :class="numClass(row[c.id])">{{ row[c.id] !== undefined ? row[c.id] : '-' }}</span>
+          </template>
         </el-table-column>
       </el-table>
       </div>
@@ -44,12 +25,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '@/api'
 
 const exams = ref([]); const examId = ref<number | null>(null)
 const compareData = ref([]); const cutoffs = ref<Record<string,number>>({})
 const loading = ref(false)
+
+const transposed = computed(() => {
+  const cls = compareData.value
+  if (!cls.length) return []
+  const rows = []
+  const addRow = (label: string, key: string) => {
+    const row: any = { label }
+    cls.forEach((c: any) => { row[c.id] = c[key] !== undefined ? c[key] : '-' })
+    rows.push(row)
+  }
+  if (cutoffs.value.score_930) addRow(`≥${cutoffs.value.score_930}(930线)`, 'count_930')
+  if (cutoffs.value.special) addRow(`特控线(≥${cutoffs.value.special})`, 'count_special')
+  addRow('前20名', 'top20')
+  addRow('前30名', 'top30')
+  addRow('前50名', 'top50')
+  addRow('前80名', 'top80')
+  addRow('前100名', 'top100')
+  if (cutoffs.value.first) addRow(`一段线(≥${cutoffs.value.first})`, 'count_first')
+  return rows
+})
 
 onMounted(async () => {
   try { const r = await api.get('/exams'); exams.value = r.data } catch {}
