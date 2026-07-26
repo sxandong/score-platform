@@ -366,7 +366,7 @@ function makeChart(domId, series, yName, isRank, title, yMax) {{
     tooltip:{{trigger:'axis'}},legend:{{show:false}},
     grid:{{left:50,right:15,top:title?32:35,bottom:22}},
     xAxis:{{type:'category',data:allData[ci].labels}},
-    yAxis:{{type:'value',name:yName,minInterval:1}} }};
+    yAxis:{{type:'value',minInterval:1}} }};
   if(isRank) opt.yAxis.inverse = true;
   if(yMax) opt.yAxis.max = yMax;
   opt.series = series;
