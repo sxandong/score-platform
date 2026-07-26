@@ -16,7 +16,6 @@ router = APIRouter(prefix="/api/reports", tags=["报表导出"])
 async def student_report(
     student_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin", "director", "teacher", "student")),
 ):
     """导出学生历次考试成绩PDF报告"""
     from jinja2 import Template
@@ -81,15 +80,10 @@ tr:nth-child(even){{background:#fafcfd}}
     from datetime import datetime
     html = html.replace("__NOW__", datetime.now().strftime("%Y-%m-%d %H:%M"))
 
-    try:
-        from weasyprint import HTML as WHTML
-        pdf = WHTML(string=html).write_pdf()
-        return StreamingResponse(BytesIO(pdf),
-            media_type="application/pdf",
-            headers={"Content-Disposition":
-                     f"attachment; filename={student.name}_成绩报告.pdf"})
-    except ImportError:
-        return JSONResponse({"code":500,"message":"PDF生成组件未安装(weasyprint)"})
+    return StreamingResponse(BytesIO(html.encode('utf-8')),
+        media_type="text/html; charset=utf-8",
+        headers={"Content-Disposition":
+                 f"inline; filename={student.name}_成绩报告.html"})
 
 
 @router.get("/score-sheet")
