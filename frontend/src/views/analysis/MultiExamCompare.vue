@@ -14,8 +14,9 @@
 
       <div class="scroll-wrap">
       <el-table :data="flatRows" border stripe size="small" :cell-style="{textAlign:'center'}" :span-method="spanMethod">
-        <el-table-column prop="examName" label="考试" width="160" fixed />
-        <el-table-column prop="typeName" label="指标" width="100" fixed />
+        <el-table-column prop="examName" label="考试" width="180" fixed />
+        <el-table-column prop="typeName" label="指标" width="90" fixed />
+        <el-table-column prop="totalCount" label="总人数" width="75" />
         <el-table-column v-for="c in compareData.classes" :key="c.id" :label="c.name" width="85">
           <template #default="{row}"><span :class="numClass(row[c.id])">{{ row[c.id]||0 }}</span></template>
         </el-table-column>
@@ -57,10 +58,12 @@ const flatRows = computed(() => {
   const rows: any[] = []
   for (const e of examsList) {
     for (const [key, tname] of Object.entries(TYPE_NAMES)) {
-      const row: any = { examName: (e.name||'').substring(0,16), typeName: tname }
+      const row: any = { examName: (e.name||'').substring(0,18), typeName: tname, totalCount: 0 }
       for (const c of classes) {
         const cc = data[String(e.id)]?.class_counts?.find((x: any) => x.class_id === c.id)
-        row[c.id] = cc ? (cc[key] || 0) : 0
+        const cnt = cc ? (cc[key] || 0) : 0
+        row[c.id] = cnt
+        row.totalCount += cnt
       }
       rows.push(row)
     }
