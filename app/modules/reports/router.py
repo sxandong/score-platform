@@ -32,24 +32,48 @@ async def student_report(
     class_name = cls.name if cls else ""
 
     from app.modules.analysis.service import student_trend
+    from app.models.audit import RankSnapshot
     exams = await student_trend(db, student_id)
     if not exams:
         return JSONResponse({"code":404,"message":"该学生没有考试成绩"})
 
-    # 构建HTML
+    # 补充语数外/7选3排名
+    for e in exams:
+        for rt, key in [("yuwai", "yws_rank"), ("top3", "top3_rank")]:
+            result = await db.execute(
+                select(RankSnapshot.grade_rank).where(
+                    RankSnapshot.exam_id == e["exam_id"],
+                    RankSnapshot.student_id == student_id,
+                    RankSnapshot.rank_type == rt,
+                ).limit(1))
+            row = result.scalar_one_or_none()
+            e[key] = row if row else ""
+
+    # 找有成绩的科目
+    used_subjs = set()
+    for e in exams:
+        for sn, sv in e.get('subjects', {}).items():
+            if sv is not None and sv != '':
+                used_subjs.add(sn)
+    subj_names = [s for s in ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术'] if s in used_subjs]
+    total_exams = len(exams)
+
     rows_html = ""
-    subj_names = ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术']
     for e in exams:
         cells = ""
         for sn in subj_names:
             cells += f"<td>{e['subjects'].get(sn,'')}</td>"
+        yws_rank = e.get('yws_rank','') or ''
+        t3_rank = e.get('top3_rank','') or ''
         rows_html += f"""
         <tr>
             <td>{e['exam_name']}</td>
             <td>{e.get('exam_date','')}</td>
             {cells}
-            <td>{e['total']}</td>
-            <td>{e.get('grade_rank','')}</td>
+            <td><b>{e.get('yws_total','')}</b></td><td>{yws_rank}</td>
+            <td><b>{e.get('top3_total','')}</b></td><td>{t3_rank}</td>
+            <td><b>{e['total']}</b></td>
+            <td>{e.get('grade_rank','')}</td><td>{e.get('class_rank','')}</td>
         </tr>"""
 
     header_cells = "".join(f"<th>{sn}</th>" for sn in subj_names)
