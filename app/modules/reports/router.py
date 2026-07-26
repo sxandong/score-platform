@@ -138,13 +138,17 @@ function makeChart(domId, series, yName, isRank) {{
   opt.series = series;
   echarts.init(el).setOption(opt);
 }}
-var subjArr = [], idx = 0;
+var subjContainer = document.getElementById('subj-charts');
+var ci = 0;
 for(var k in data.subjSeries) {{
-  subjArr.push({{name:k,type:'line',data:data.subjSeries[k],smooth:true,
-    itemStyle:{{color:colors[idx%10]}},label:{{show:true,fontSize:10}}}});
-  idx++;
+  var div = document.createElement('div');
+  div.className = 'chart'; div.id = 'subj-'+ci; div.style.height = '300px';
+  subjContainer.appendChild(div);
+  var s = [{{name:k,type:'line',data:data.subjSeries[k],smooth:true,
+    itemStyle:{{color:colors[ci%10]}},label:{{show:true,fontSize:10}}}}];
+  makeChart('subj-'+ci, s, '分数', false);
+  ci++;
 }}
-makeChart('chart-subj', subjArr, '分数', false);
 makeChart('chart-total', [{{name:'总分排名',type:'line',data:data.totalRanks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true);
 makeChart('chart-yws', [{{name:'语数外排名',type:'line',data:data.ywsRanks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true);
 makeChart('chart-t3', [{{name:'7选3排名',type:'line',data:data.t3Ranks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true);
