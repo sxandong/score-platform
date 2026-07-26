@@ -78,28 +78,6 @@ async def exam_stats(
     return success_response(data={"scores": row[0], "subjects": row[1]})
 
 
-@router.get("/all-cutoffs")
-async def get_all_cutoffs(
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin", "director", "teacher")),
-):
-    """获取所有考试的分数线"""
-    from sqlalchemy import text
-    result = await db.execute(text(
-        "SELECT e.id, e.name, sc.cutoff_type, sc.score FROM exams e"
-        " LEFT JOIN score_cutoffs sc ON e.id = sc.exam_id"
-        " ORDER BY e.id, sc.cutoff_type"
-    ))
-    exam_cutoffs: dict[int, dict] = {}
-    for row in result.fetchall():
-        eid = row[0]
-        if eid not in exam_cutoffs:
-            exam_cutoffs[eid] = {"id": eid, "name": row[1]}
-        if row[2]:
-            exam_cutoffs[eid][row[2]] = float(row[3])
-    return success_response(data=list(exam_cutoffs.values()))
-
-
 @router.get("/{exam_id}/cutoffs")
 async def get_cutoffs(
     exam_id: int,
