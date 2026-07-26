@@ -213,6 +213,104 @@ makeChart('chart-t3', [{{name:'7选3排名',type:'line',data:data.t3Ranks,smooth
     )
 
 
+@router.get("/class-report")
+async def class_report(
+    class_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """导出全班学生成绩报告(每人一页HTML)"""
+    from app.models.base_data import Student, Class
+    from app.modules.analysis.service import student_trend
+    from app.models.audit import RankSnapshot
+
+    result = await db.execute(select(Class).where(Class.id == class_id))
+    cls = result.scalar_one_or_none()
+    class_name = cls.name if cls else ""
+
+    result = await db.execute(
+        select(Student).where(Student.class_id == class_id).order_by(Student.student_no))
+    students = list(result.scalars().all())
+
+    ALL_SUBJS = ["语文","数学","外语","政治","历史","地理","物理","化学","生物","技术"]
+    all_pages = []
+
+    for student in students:
+        exams = await student_trend(db, student.id)
+        if not exams:
+            continue
+
+        for e in exams:
+            for rt, key in [("yuwai", "yws_rank"), ("top3", "top3_rank")]:
+                r2 = await db.execute(
+                    select(RankSnapshot.grade_rank).where(
+                        RankSnapshot.exam_id == e["exam_id"],
+                        RankSnapshot.student_id == student.id,
+                        RankSnapshot.rank_type == rt).limit(1))
+                e[key] = r2.scalar_one_or_none() or ""
+
+        used_subjs = set()
+        for e in exams:
+            for sn, sv in e.get("subjects", {}).items():
+                if sv is not None and sv != "":
+                    used_subjs.add(sn)
+        subj_names = [s for s in ALL_SUBJS if s in used_subjs]
+
+        rows_html = ""
+        for e in exams:
+            cells = "".join(f"<td>{e['subjects'].get(sn,'')}</td>" for sn in subj_names)
+            yw_r = e.get("yws_rank","") or ""
+            t3_r = e.get("top3_rank","") or ""
+            rows_html += (
+                f"<tr><td>{e['exam_name']}</td><td>{e.get('exam_date','')}</td>{cells}"
+                f"<td><b>{e['total']}</b></td>"
+                f"<td>{e.get('grade_rank','')}</td><td>{e.get('class_rank','')}</td>"
+                f"<td><b>{e.get('yws_total','')}</b></td><td>{yw_r}</td>"
+                f"<td><b>{e.get('top3_total','')}</b></td><td>{t3_r}</td></tr>")
+
+        header_cells = "".join(f"<th>{sn}</th>" for sn in subj_names)
+        all_pages.append(f"""
+        <div class="page">
+        <h1>学生成绩报告</h1>
+        <h2>普通高中教学质量分析系统</h2>
+        <div class="info"><span>姓名: {student.name}</span><span>学籍号: {student.student_no}</span><span>班级: {class_name}</span></div>
+        <table>
+        <tr><th>考试</th><th>日期</th>{header_cells}
+        <th>总分</th><th>年级排名</th><th>班级排名</th>
+        <th>语数外总分</th><th>语数外排名</th>
+        <th>7选3总分</th><th>7选3排名</th></tr>
+        {rows_html}
+        </table>
+        </div>""")
+
+    from datetime import datetime
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+body{{font-family:"PingFang SC","Microsoft YaHei",sans-serif;font-size:12px;color:#333;margin:0;padding:20px}}
+.page{{page-break-after:always;padding:10px 0}}
+.page:last-child{{page-break-after:auto}}
+h1{{text-align:center;font-size:18px;margin-bottom:2px;color:#1a5490}}
+h2{{text-align:center;font-size:12px;color:#999;margin-top:0;margin-bottom:6px}}
+.info{{text-align:center;font-size:12px;margin-bottom:12px;color:#555}}
+.info span{{margin:0 10px}}
+table{{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px}}
+th,td{{border:1px solid #d0d7de;padding:4px 3px;text-align:center}}
+th{{background:#1a5490;color:#fff;font-weight:600;font-size:11px}}
+tr:nth-child(even){{background:#f6f8fa}}
+@page{{size:A4 landscape;margin:8mm}}
+</style></head><body>
+{''.join(all_pages)}
+<p style="text-align:center;font-size:10px;color:#999">报告生成时间: {now} | 共 {len(all_pages)} 名学生</p>
+</body></html>"""
+
+    return StreamingResponse(
+        BytesIO(html.encode("utf-8")),
+        media_type="text/html; charset=utf-8",
+        headers={"Content-Disposition": "inline; filename=class_report.html"},
+    )
+
+
 @router.get("/score-sheet")
 async def export_score_sheet(
     exam_id: int,
