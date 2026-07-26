@@ -359,7 +359,7 @@ function drawCharts(data: any[], numSid: number) {
       series: [{ name: sn+'排名', type: 'line', data: ranks, smooth: true,
         label: { show: true, position: 'top', fontSize: 11 },
         markLine: { data: [{ type: 'average', name: '平均' }], lineStyle: { type: 'dashed' },
-          label: { formatter: '{c}', fontSize: 11 } } }],
+          label: { formatter: (p: any) => Math.round(p.value), fontSize: 11 } } }],
     }, true)
   })
 
