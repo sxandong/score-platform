@@ -13,11 +13,10 @@
       <template #header><span style="font-weight:600">班级达线人数对比</span></template>
 
       <div class="scroll-wrap">
-      <el-table :data="mergedRows" border stripe size="small" :cell-style="{textAlign:'center'}">
-        <el-table-column prop="className" label="班级" width="110" fixed />
-        <el-table-column prop="typeName" label="指标" width="90" fixed />
-        <el-table-column v-for="e in compareData.exams" :key="e.id" :label="(e.name||'').substring(0,14)" width="85">
-          <template #default="{row}"><span :class="numClass(row[e.id])">{{ row[e.id]||0 }}</span></template>
+      <el-table :data="transposedRows" border stripe size="small" :cell-style="{textAlign:'center'}">
+        <el-table-column prop="label" label="考试/指标" width="150" fixed />
+        <el-table-column v-for="c in compareData.classes" :key="c.id" :label="c.name" width="85">
+          <template #default="{row}"><span :class="numClass(row[c.id])">{{ row[c.id]||0 }}</span></template>
         </el-table-column>
       </el-table>
       </div>
@@ -50,19 +49,17 @@ onMounted(async () => {
 
 const TYPE_NAMES: Record<string,string> = { c930: '930线', special: '特控线', first: '一段线' }
 
-const mergedRows = computed(() => {
+const transposedRows = computed(() => {
   const classes = compareData.value.classes || []
+  const examsList = compareData.value.exams || []
   const data = compareData.value.data || {}
   const rows: any[] = []
-  for (const c of classes) {
-    for (const [key, name] of Object.entries(TYPE_NAMES)) {
-      const row: any = { className: c.name, typeName: name }
-      for (const eid of selectedExams.value) {
-        const examData = data[String(eid)]
-        if (examData) {
-          const cc = examData.class_counts?.find((x: any) => x.class_id === c.id)
-          row[eid] = cc ? (cc[key] || 0) : 0
-        }
+  for (const e of examsList) {
+    for (const [key, tname] of Object.entries(TYPE_NAMES)) {
+      const row: any = { label: `${(e.name||'').substring(0,14)} - ${tname}` }
+      for (const c of classes) {
+        const cc = data[String(e.id)]?.class_counts?.find((x: any) => x.class_id === c.id)
+        row[c.id] = cc ? (cc[key] || 0) : 0
       }
       rows.push(row)
     }
