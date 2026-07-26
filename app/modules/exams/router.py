@@ -97,6 +97,10 @@ async def get_cutoffs(
         ("special", "特控线(前20%)"),
         ("first", "一段线(前60%)"),
     ]
+    SUBJ_NAMES = ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术']
+    for sn in SUBJ_NAMES:
+        CUTOFF_TYPES.append((f"subj_excellent_{sn}", f"{sn}优秀线"))
+        CUTOFF_TYPES.append((f"subj_good_{sn}", f"{sn}良好线"))
     cutoffs = []
     for ct, name in CUTOFF_TYPES:
         cutoffs.append({
