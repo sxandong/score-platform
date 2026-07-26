@@ -151,10 +151,10 @@ tr:nth-child(even){{background:#f6f8fa}}
 var data = {chart_json};
 var labels = data.labels;
 var colors = ['#5470c6','#91cc75','#fac858','#ee6666','#73c0de','#3ba272','#fc8452','#9a60b4','#ea7ccc','#48b8d0'];
-function makeChart(domId, series, yName, isRank) {{
+function makeChart(domId, series, yName, isRank, title) {{
   var el = document.getElementById(domId); if(!el) return;
-  var opt = {{tooltip:{{trigger:'axis'}},legend:{{top:0,type:'scroll'}},
-    grid:{{left:55,right:20,top:40,bottom:25}},
+  var opt = {{title:title?{{text:title,left:'center',top:3,textStyle:{{fontSize:13,fontWeight:'bold'}}}}:undefined,tooltip:{{trigger:'axis'}},legend:{{top:0,type:'scroll'}},
+    grid:{{left:55,right:20,top:title?35:40,bottom:25}},
     xAxis:{{type:'category',data:labels}},
     yAxis:{{type:'value',name:yName,minInterval:1}} }};
   if(isRank) opt.yAxis.inverse = true;
@@ -173,8 +173,9 @@ function renderSubjCharts(rowId, subjList) {{
     var countData = data.subjCounts[k] || [];
     var yMax = Math.max.apply(null, countData.filter(function(v){{return v>0}})) || 1;
     var opt = {{
+      title:{{text:k+'排名趋势',left:'center',top:3,textStyle:{{fontSize:13,fontWeight:'bold'}}}},
       tooltip:{{trigger:'axis'}},
-      grid:{{left:55,right:20,top:30,bottom:25}},
+      grid:{{left:55,right:20,top:35,bottom:25}},
       xAxis:{{type:'category',data:labels}},
       yAxis:{{type:'value',name:'排名',inverse:true,min:1,max:yMax}},
       series:[{{name:k+'排名',type:'line',data:rankData,smooth:true,
@@ -189,9 +190,9 @@ var allSubjs = Object.keys(data.subjRanks);
 var elecSubjs = allSubjs.filter(function(s){{return ['语文','数学','外语'].indexOf(s)===-1}});
 renderSubjCharts('row-elec', elecSubjs);
 // Row 3: total/yw/t3 ranks
-makeChart('chart-total', [{{name:'总分排名',type:'line',data:data.totalRanks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true);
-makeChart('chart-yws', [{{name:'语数外排名',type:'line',data:data.ywsRanks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true);
-makeChart('chart-t3', [{{name:'7选3排名',type:'line',data:data.t3Ranks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true);
+makeChart('chart-total', [{{name:'总分排名',type:'line',data:data.totalRanks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true,'总分排名趋势');
+makeChart('chart-yws', [{{name:'语数外排名',type:'line',data:data.ywsRanks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true,'语数外排名趋势');
+makeChart('chart-t3', [{{name:'7选3排名',type:'line',data:data.t3Ranks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true,'7选3排名趋势');
 </script>
 
 <p style="text-align:right;font-size:10px;color:#999">报告生成时间: {now}</p>
