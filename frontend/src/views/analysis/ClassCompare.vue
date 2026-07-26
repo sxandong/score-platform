@@ -9,7 +9,7 @@
     </el-form>
 
     <el-card v-if="examId && compareData.length" v-loading="loading">
-      <div style="overflow-x:auto">
+      <div class="scroll-wrap">
       <el-table :data="transposed" border stripe size="small" :cell-style="{textAlign:'center'}">
         <el-table-column prop="label" label="指标" width="140" />
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="90">
@@ -18,11 +18,9 @@
           </template>
         </el-table-column>
       </el-table>
-      </div>
 
-      <!-- 各科优秀线上线人数 -->
       <h4 style="margin:20px 0 8px">各学科优秀线上线人数
-        <span style="font-size:13px;color:var(--tx-secondary);margin-left:12px">
+        <span class="cutoff-hint">
           语文≥{{ subjCutoffs.语文?.excellent||'-' }} 数学≥{{ subjCutoffs.数学?.excellent||'-' }}
           外语≥{{ subjCutoffs.外语?.excellent||'-' }} 物理≥{{ subjCutoffs.物理?.excellent||'-' }}
           化学≥{{ subjCutoffs.化学?.excellent||'-' }} 生物≥{{ subjCutoffs.生物?.excellent||'-' }}
@@ -30,7 +28,6 @@
           地理≥{{ subjCutoffs.地理?.excellent||'-' }} 技术≥{{ subjCutoffs.技术?.excellent||'-' }}
         </span>
       </h4>
-      <div style="overflow-x:auto;margin-bottom:16px">
       <el-table :data="excellentRows" border stripe size="small" :cell-style="{textAlign:'center'}">
         <el-table-column prop="label" label="科目" width="80" />
         <el-table-column prop="total" label="总人数" width="75" />
@@ -40,11 +37,9 @@
           </template>
         </el-table-column>
       </el-table>
-      </div>
 
-      <!-- 各科良好线上线人数 -->
       <h4 style="margin:16px 0 8px">各学科良好线上线人数
-        <span style="font-size:13px;color:var(--tx-secondary);margin-left:12px">
+        <span class="cutoff-hint">
           语文≥{{ subjCutoffs.语文?.good||'-' }} 数学≥{{ subjCutoffs.数学?.good||'-' }}
           外语≥{{ subjCutoffs.外语?.good||'-' }} 物理≥{{ subjCutoffs.物理?.good||'-' }}
           化学≥{{ subjCutoffs.化学?.good||'-' }} 生物≥{{ subjCutoffs.生物?.good||'-' }}
@@ -52,7 +47,6 @@
           地理≥{{ subjCutoffs.地理?.good||'-' }} 技术≥{{ subjCutoffs.技术?.good||'-' }}
         </span>
       </h4>
-      <div style="overflow-x:auto">
       <el-table :data="goodRows" border stripe size="small" :cell-style="{textAlign:'center'}">
         <el-table-column prop="label" label="科目" width="80" />
         <el-table-column prop="total" label="总人数" width="75" />
@@ -153,6 +147,8 @@ function numClass(v: number, label: string): string {
 </script>
 
 <style scoped>
+.scroll-wrap { overflow-x:auto; width:100%; }
+.cutoff-hint { font-size:12px; color:var(--tx-secondary); margin-left:8px; white-space:nowrap; }
 :deep(.el-table th.el-table__cell) { background: linear-gradient(180deg,#f0f5fa,#e8f0fe); color:var(--edu-blue); font-weight:600; text-align:center; }
 .count-high { color:var(--edu-green); font-weight:700; }
 .count-mid { color:var(--edu-gold); font-weight:600; }
