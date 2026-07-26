@@ -89,13 +89,13 @@ th,td{{border:1px solid #ccc;padding:4px 3px;text-align:center}}
 th{{background:#e8f0fe;font-weight:bold}}
 tr:nth-child(even){{background:#fafcfd}}
 .total-row td{{font-weight:bold}}
-@page{{size:A4;margin:12mm}}
+@page{{size:A4 landscape;margin:10mm}}
 </style></head><body>
 <h1>学生成绩报告</h1>
 <h2>普通高中教学质量分析系统</h2>
 <div class="info">姓名: {student.name} | 学籍号: {student.student_no} | 班级: {class_name}</div>
 <table>
-<tr><th>考试</th><th>日期</th>{header_cells}<th>总分</th><th>年级排名</th></tr>
+<tr><th>考试</th><th>日期</th>{header_cells}<th>语数外总分</th><th>语数外排名</th><th>7选3总分</th><th>7选3排名</th><th>总分</th><th>年级排名</th><th>班级排名</th></tr>
 {rows_html}
 </table>
 <p style="text-align:right;font-size:10px;color:#999;margin-top:16px">报告生成时间: __NOW__</p>
