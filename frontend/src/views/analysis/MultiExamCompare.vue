@@ -16,7 +16,7 @@
       <el-table :data="flatRows" border stripe size="small" :cell-style="{textAlign:'center'}" :span-method="spanMethod">
         <el-table-column prop="examName" label="考试" width="180" fixed />
         <el-table-column prop="typeName" label="指标" width="90" fixed />
-        <el-table-column prop="totalCount" label="总人数" width="75" />
+        <el-table-column prop="totalCount" label="总人数" width="75" fixed />
         <el-table-column v-for="c in compareData.classes" :key="c.id" :label="c.name" width="85">
           <template #default="{row}"><span :class="numClass(row[c.id])">{{ row[c.id]||0 }}</span></template>
         </el-table-column>
@@ -24,7 +24,7 @@
       </div>
 
       <el-form :inline="true" style="margin:16px 0">
-        <el-form-item label="图表指标"><el-select v-model="chartMetric" @change="drawChart">
+        <el-form-item label="图表指标"><el-select v-model="chartMetric" @change="drawChart" style="width:200px">
           <el-option label="930分数线人数" value="c930" />
           <el-option label="特控线上线人数" value="special" />
           <el-option label="一段线上线人数" value="first" />
