@@ -96,6 +96,13 @@ async def student_report(
                     Score.exam_id == eid, Score.subject_id == sid_row))
             subj_counts.setdefault(sn, []).append(r4.scalar_one() or 1)
 
+    # Total student counts per exam for Y-axis max
+    total_counts = []
+    for e in sorted_exams:
+        r = await db.execute(select(func.count(RankSnapshot.id)).where(
+            RankSnapshot.exam_id == e["exam_id"], RankSnapshot.rank_type == "total"))
+        total_counts.append(r.scalar_one() or 1)
+
     chart_data = {
         "labels": chart_labels,
         "subjRanks": subj_ranks,
@@ -103,6 +110,7 @@ async def student_report(
         "totalRanks": [e.get("grade_rank") for e in sorted_exams],
         "ywsRanks": [e.get("yws_rank") for e in sorted_exams],
         "t3Ranks": [e.get("top3_rank") for e in sorted_exams],
+        "totalCounts": total_counts,
     }
     chart_json = json.dumps(chart_data, ensure_ascii=False)
 
@@ -151,12 +159,12 @@ tr:nth-child(even){{background:#f6f8fa}}
 var data = {chart_json};
 var labels = data.labels;
 var colors = ['#5470c6','#91cc75','#fac858','#ee6666','#73c0de','#3ba272','#fc8452','#9a60b4','#ea7ccc','#48b8d0'];
-function makeChart(domId, series, yName, isRank, title) {{
+function makeChart(domId, series, yName, isRank, title, yMax) {{
   var el = document.getElementById(domId); if(!el) return;
   var opt = {{title:title?{{text:title,left:'center',top:3,textStyle:{{fontSize:13,fontWeight:'bold'}}}}:undefined,tooltip:{{trigger:'axis'}},legend:{{show:false}},
     grid:{{left:55,right:20,top:title?35:40,bottom:25}},
     xAxis:{{type:'category',data:labels}},
-    yAxis:{{type:'value',name:yName,minInterval:1}} }};
+    yAxis:{{type:'value',name:yName,minInterval:1,max:yMax||undefined}} }};
   if(isRank) opt.yAxis.inverse = true;
   opt.series = series;
   echarts.init(el).setOption(opt);
