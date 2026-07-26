@@ -43,7 +43,7 @@ async def student_report(
             rv = r2.scalar_one_or_none()
             e[key] = rv if rv else ""
 
-    ALL_SUBJS = ["Chinese","Math","English","Politics","History","Geography","Physics","Chemistry","Biology","Tech"]
+    ALL_SUBJS = ["语文","数学","外语","政治","历史","地理","物理","化学","生物","技术"]
     used_subjs = set()
     for e in exams:
         for sn, sv in e.get("subjects", {}).items():
@@ -103,18 +103,18 @@ tr:nth-child(even){{background:#f6f8fa}}
 .chart-row{{display:flex;gap:12px;flex-wrap:wrap}}
 .chart-row .chart{{flex:1;min-width:450px;height:340px}}
 </style></head><body>
-<h1>Student Score Report</h1>
-<h2>High School Teaching Quality System</h2>
-<div class="info"><span>Name: {student.name}</span><span>No: {student.student_no}</span><span>Class: {class_name}</span></div>
+<h1>学生成绩报告</h1>
+<h2>普通高中教学质量分析系统</h2>
+<div class="info"><span>姓名: {student.name}</span><span>学籍号: {student.student_no}</span><span>班级: {class_name}</span></div>
 <table>
-<tr><th>Exam</th><th>Date</th>{header_cells}
-<th>Total</th><th>G-Rank</th><th>C-Rank</th>
-<th>YWY Total</th><th>YWY Rank</th>
-<th>Top3 Total</th><th>Top3 Rank</th></tr>
+<tr><th>考试</th><th>日期</th>{header_cells}
+<th>总分</th><th>年级排名</th><th>班级排名</th>
+<th>语数外总分</th><th>语数外排名</th>
+<th>7选3总分</th><th>7选3排名</th></tr>
 {rows_html}
 </table>
 
-<h3>Score Trend Charts</h3>
+<h3>成绩趋势图</h3>
 <div class="chart-row">
 <div class="chart" id="chart-subj"></div>
 <div class="chart" id="chart-total"></div>
@@ -144,13 +144,13 @@ for(var k in data.subjSeries) {{
     itemStyle:{{color:colors[idx%10]}},label:{{show:true,fontSize:10}}}});
   idx++;
 }}
-makeChart('chart-subj', subjArr, 'Score', false);
-makeChart('chart-total', [{{name:'Total Rank',type:'line',data:data.totalRanks,smooth:true,label:{{show:true,fontSize:10}}}}], 'Rank', true);
-makeChart('chart-yws', [{{name:'YWY Rank',type:'line',data:data.ywsRanks,smooth:true,label:{{show:true,fontSize:10}}}}], 'Rank', true);
-makeChart('chart-t3', [{{name:'Top3 Rank',type:'line',data:data.t3Ranks,smooth:true,label:{{show:true,fontSize:10}}}}], 'Rank', true);
+makeChart('chart-subj', subjArr, '分数', false);
+makeChart('chart-total', [{{name:'总分排名',type:'line',data:data.totalRanks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true);
+makeChart('chart-yws', [{{name:'语数外排名',type:'line',data:data.ywsRanks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true);
+makeChart('chart-t3', [{{name:'7选3排名',type:'line',data:data.t3Ranks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true);
 </script>
 
-<p style="text-align:right;font-size:10px;color:#999">Generated: {now}</p>
+<p style="text-align:right;font-size:10px;color:#999">报告生成时间: {now}</p>
 </body></html>"""
 
     return StreamingResponse(
