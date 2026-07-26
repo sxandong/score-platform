@@ -327,8 +327,11 @@ function drawCharts(data: any[], numSid: number) {
       yAxis: { type: 'value', name: '排名', inverse: true, min: 1, max: yMax || maxTotal },
       series: [{ name: title, type: 'line', data: vals, smooth: true,
         label: { show: true, position: 'top', fontSize: 11 },
-        markLine: { silent: true, symbol: 'none', label: { formatter: `平均排名: ${avg}` },
-          data: [{ yAxis: avg, name: '平均排名' }] } }],
+        markLine: { silent: true, symbol: 'none',
+          label: { formatter: `均${avg}`, position: 'insideStartTop', fontSize: 11 },
+          data: [{ yAxis: avg, name: '平均排名' }],
+          lineStyle: { width: 1.5, type: 'dashed', color: '#aaa' },
+        } }],
     }, true)
   }
 
@@ -360,7 +363,11 @@ function drawCharts(data: any[], numSid: number) {
       yAxis: { type: 'value', name: '排名', inverse: true, min: 1, max: yMax },
       series: [{ name: sn+'排名', type: 'line', data: ranks, smooth: true,
         label: { show: true, position: 'top', fontSize: 11 },
-        markLine: { data: [{ type: 'average', name: '平均排名' }] } }],
+        markLine: { silent: true, symbol: 'none',
+          label: { formatter: (p: any) => `均${Math.round(p.value)}`, position: 'insideStartTop', fontSize: 10 },
+          data: [{ type: 'average', name: '平均' }],
+          lineStyle: { width: 1.5, type: 'dashed', color: '#aaa' },
+        } }],
     }, true)
   })
 
