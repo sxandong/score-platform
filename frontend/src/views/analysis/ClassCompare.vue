@@ -35,8 +35,7 @@
         <el-table-column prop="label" label="科目" width="80" fixed />
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="100">
           <template #default="{row}">
-            <span :class="numClass(row[c.id]?.count,'')">{{ row[c.id]?.count || 0 }}</span>
-            <span style="font-size:11px;color:var(--tx-secondary)"> ({{ row[c.id]?.pct }}%)</span>
+            <span :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -57,8 +56,7 @@
         <el-table-column prop="label" label="科目" width="80" fixed />
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="100">
           <template #default="{row}">
-            <span :class="numClass(row[c.id]?.count,'')">{{ row[c.id]?.count || 0 }}</span>
-            <span style="font-size:11px;color:var(--tx-secondary)"> ({{ row[c.id]?.pct }}%)</span>
+            <span :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>
           </template>
         </el-table-column>
       </el-table>
