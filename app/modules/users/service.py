@@ -49,7 +49,10 @@ async def create_user_service(db: AsyncSession, data) -> User:
             await db.execute(user_roles.insert().values(user_id=user.id, role_id=role.id))
 
     await db.flush()
-    return user
+    # 重新加载用户以避免惰性加载问题
+    result = await db.execute(
+        select(User).options(selectinload(User.roles)).where(User.id == user.id))
+    return result.scalar_one()
 
 
 async def update_user_service(db: AsyncSession, user_id: int, data) -> User:
@@ -72,4 +75,7 @@ async def update_user_service(db: AsyncSession, user_id: int, data) -> User:
                 await db.execute(user_roles.insert().values(user_id=user.id, role_id=role.id))
 
     await db.flush()
-    return user
+    # 重新加载以避免惰性加载问题
+    result = await db.execute(
+        select(User).options(selectinload(User.roles)).where(User.id == user_id))
+    return result.scalar_one()
