@@ -20,15 +20,45 @@
       </el-table>
       </div>
 
-      <!-- 各科优秀/良好线上线人数 -->
-      <h4 style="margin:20px 0 8px">各学科优秀/良好线上线人数</h4>
-      <div style="overflow-x:auto">
-      <el-table :data="subjRows" border stripe size="small" :cell-style="{textAlign:'center'}">
-        <el-table-column prop="label" label="科目" width="100" fixed />
+      <!-- 各科优秀线上线人数 -->
+      <h4 style="margin:20px 0 8px">各学科优秀线上线人数
+        <span style="font-size:13px;color:var(--tx-secondary);margin-left:12px">
+          语文≥{{ subjCutoffs.语文?.excellent||'-' }} 数学≥{{ subjCutoffs.数学?.excellent||'-' }}
+          外语≥{{ subjCutoffs.外语?.excellent||'-' }} 物理≥{{ subjCutoffs.物理?.excellent||'-' }}
+          化学≥{{ subjCutoffs.化学?.excellent||'-' }} 生物≥{{ subjCutoffs.生物?.excellent||'-' }}
+          政治≥{{ subjCutoffs.政治?.excellent||'-' }} 历史≥{{ subjCutoffs.历史?.excellent||'-' }}
+          地理≥{{ subjCutoffs.地理?.excellent||'-' }} 技术≥{{ subjCutoffs.技术?.excellent||'-' }}
+        </span>
+      </h4>
+      <div style="overflow-x:auto;margin-bottom:16px">
+      <el-table :data="excellentRows" border stripe size="small" :cell-style="{textAlign:'center'}">
+        <el-table-column prop="label" label="科目" width="80" fixed />
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="100">
           <template #default="{row}">
-            {{ row[c.id]?.count }}
-            <span style="font-size:11px;color:var(--tx-secondary)">({{ row[c.id]?.pct }}%)</span>
+            <span :class="numClass(row[c.id]?.count,'')">{{ row[c.id]?.count || 0 }}</span>
+            <span style="font-size:11px;color:var(--tx-secondary)"> ({{ row[c.id]?.pct }}%)</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      </div>
+
+      <!-- 各科良好线上线人数 -->
+      <h4 style="margin:16px 0 8px">各学科良好线上线人数
+        <span style="font-size:13px;color:var(--tx-secondary);margin-left:12px">
+          语文≥{{ subjCutoffs.语文?.good||'-' }} 数学≥{{ subjCutoffs.数学?.good||'-' }}
+          外语≥{{ subjCutoffs.外语?.good||'-' }} 物理≥{{ subjCutoffs.物理?.good||'-' }}
+          化学≥{{ subjCutoffs.化学?.good||'-' }} 生物≥{{ subjCutoffs.生物?.good||'-' }}
+          政治≥{{ subjCutoffs.政治?.good||'-' }} 历史≥{{ subjCutoffs.历史?.good||'-' }}
+          地理≥{{ subjCutoffs.地理?.good||'-' }} 技术≥{{ subjCutoffs.技术?.good||'-' }}
+        </span>
+      </h4>
+      <div style="overflow-x:auto">
+      <el-table :data="goodRows" border stripe size="small" :cell-style="{textAlign:'center'}">
+        <el-table-column prop="label" label="科目" width="80" fixed />
+        <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="100">
+          <template #default="{row}">
+            <span :class="numClass(row[c.id]?.count,'')">{{ row[c.id]?.count || 0 }}</span>
+            <span style="font-size:11px;color:var(--tx-secondary)"> ({{ row[c.id]?.pct }}%)</span>
           </template>
         </el-table-column>
       </el-table>
@@ -67,20 +97,36 @@ const transposed = computed(() => {
   return rows
 })
 
-const subjRows = computed(() => {
-  const rows: any[] = []
-  for (const [key, items] of Object.entries(subjStats.value)) {
-    const row: any = { label: key }
+const SUBJ_NAMES = ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术']
+
+const subjCutoffs = computed(() => {
+  const map: Record<string, any> = {}
+  SUBJ_NAMES.forEach(sn => {
+    map[sn] = {
+      excellent: cutoffs.value[`subj_excellent_${sn}`] ?? '-',
+      good: cutoffs.value[`subj_good_${sn}`] ?? '-',
+    }
+  })
+  return map
+})
+
+function _makeSubjRows(type: string) {
+  return SUBJ_NAMES.map(sn => {
+    const key = `${sn}${type}`
+    const items = subjStats.value[key] || []
+    const row: any = { label: sn }
     compareData.value.forEach((c: any) => {
-      const found = (items as any[]).find((x: any) => x.class_id === c.id)
+      const found = items.find((x: any) => x.class_id === c.id)
       const cnt = found ? found.count : 0
-      const total = c.top100 ? c.top100 + 1 : 1
+      const total = c.top100 || 1
       row[c.id] = { count: cnt, pct: total > 0 ? (cnt / Math.max(1, total) * 100).toFixed(1) : '0.0' }
     })
-    rows.push(row)
-  }
-  return rows
-})
+    return row
+  })
+}
+
+const excellentRows = computed(() => _makeSubjRows('优秀'))
+const goodRows = computed(() => _makeSubjRows('良好'))
 
 onMounted(async () => {
   try { const r = await api.get('/exams'); exams.value = r.data } catch {}
