@@ -36,8 +36,8 @@
             <span :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="label" label="科目" width="80" />
         <el-table-column prop="total" label="总人数" width="75" />
+        <el-table-column prop="label" label="科目" width="80" />
       </el-table>
 
       <h4 style="margin:16px 0 8px">各学科良好线上线人数
@@ -57,8 +57,8 @@
             <span :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="label" label="科目" width="80" />
         <el-table-column prop="total" label="总人数" width="75" />
+        <el-table-column prop="label" label="科目" width="80" />
       </el-table>
       </div>
     </el-card>
