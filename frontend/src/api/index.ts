@@ -18,6 +18,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => {
     const data = response.data
+    if (response.config.responseType === 'blob') return response
     if (data.code !== 200) {
       if (data.code === 401) {
         const authStore = useAuthStore()

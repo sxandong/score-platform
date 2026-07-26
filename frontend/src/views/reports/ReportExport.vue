@@ -62,9 +62,19 @@ async function searchStudent() {
   } catch {}
 }
 
-function exportPDF() {
+async function exportPDF() {
   if (!selectedId.value) return
-  window.open(`/api/reports/student-report?student_id=${selectedId.value}`)
-  ElMessage.success('PDF报告生成中，请稍候...')
+  try {
+    const resp = await api.get('/reports/student-report', {
+      params: { student_id: selectedId.value },
+      responseType: 'blob',
+    })
+    const blob = resp.data || resp
+    const url = window.URL.createObjectURL(new Blob([blob]))
+    const a = document.createElement('a'); a.href = url
+    a.download = '学生成绩报告.pdf'; a.click()
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('PDF报告已下载')
+  } catch (e: any) { ElMessage.error(e.message) }
 }
 </script>
