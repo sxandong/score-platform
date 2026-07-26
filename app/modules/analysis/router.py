@@ -195,6 +195,33 @@ async def score_distribution(
     return success_response(data=result)
 
 
+@router.get("/cutoff-trend")
+async def cutoff_trend(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin", "director", "teacher")),
+):
+    """历次考试930/特控/一段上线人数趋势"""
+    from sqlalchemy import text
+    result = await db.execute(text("SELECT id, name, exam_date FROM exams ORDER BY exam_date"))
+    exams = [{"id": r[0], "name": r[1], "date": str(r[2]) if r[2] else None} for r in result.fetchall()]
+    data = []
+    for e in exams:
+        entry = {"exam_id": e["id"], "exam_name": e["name"], "exam_date": e["date"]}
+        result = await db.execute(text(
+            "SELECT cutoff_type, score FROM score_cutoffs WHERE exam_id=:eid"), {"eid": e["id"]})
+        cutoffs = {r[0]: float(r[1]) for r in result.fetchall()}
+        for ct, key in [("score_930","c930"),("special","special"),("first","first")]:
+            entry[key] = 0
+            if ct in cutoffs:
+                result = await db.execute(text(
+                    "SELECT COUNT(*) FROM rank_snapshots WHERE exam_id=:eid"
+                    " AND rank_type='total' AND total_score >= :sc"
+                ), {"eid": e["id"], "sc": cutoffs[ct]})
+                entry[key] = result.scalar_one()
+        data.append(entry)
+    return success_response(data=data)
+
+
 @router.get("/ranks")
 async def get_ranks(
     exam_id: int,

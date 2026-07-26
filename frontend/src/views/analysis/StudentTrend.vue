@@ -1,31 +1,52 @@
 <template>
   <div>
-    <h3>成绩趋势</h3>
-    <el-form :inline="true">
-      <el-form-item label="学生ID"><el-input-number v-model="studentId" :min="1" /></el-form-item>
-      <el-form-item><el-button type="primary" @click="loadData">查询</el-button></el-form-item>
-    </el-form>
-    <el-table :data="trendData" border stripe v-if="trendData.length" v-loading="loading" style="margin-top:16px">
-      <el-table-column prop="exam_name" label="考试" />
-      <el-table-column prop="exam_date" label="日期" width="120" />
-      <el-table-column prop="total_score" label="总分" width="100" />
-      <el-table-column prop="grade_rank" label="年级排名" width="100" />
-    </el-table>
-    <el-empty v-else description="请输入学生ID查询成绩趋势" />
+    <div class="page-header"><h3>成绩趋势</h3><p>历次考试各分数线上线人数变化趋势</p></div>
+
+    <el-card v-loading="loading">
+      <div id="chart-cutoff-trend" style="width:100%;height:450px"></div>
+    </el-card>
+    <el-empty v-if="!loading && !chartReady" description="暂无数据" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
+import * as echarts from 'echarts'
 import api from '@/api'
 
-const studentId = ref<number | null>(null)
-const trendData = ref([]); const loading = ref(false)
+const loading = ref(false); const chartReady = ref(false)
+
+onMounted(async () => { await loadData() })
 
 async function loadData() {
-  if (!studentId.value) return; loading.value = true
-  try { const r = await api.get('/analysis/student-trend', { params: { student_id: studentId.value } }); trendData.value = r.data }
-  catch {}
-  loading.value = false
+  loading.value = true
+  try {
+    const r = await api.get('/analysis/cutoff-trend')
+    const data = r.data || []
+    if (!data.length) return
+
+    await nextTick(); await new Promise(r2 => setTimeout(r2, 200))
+    const el = document.getElementById('chart-cutoff-trend')
+    if (!el) return
+
+    const labels = data.map((d: any) => (d.exam_name||'').substring(0,14))
+    const inst = echarts.init(el)
+    inst.setOption({
+      tooltip: { trigger: 'axis' },
+      legend: { top: 0 },
+      grid: { left: 55, right: 20, top: 40, bottom: 25 },
+      xAxis: { type: 'category', data: labels },
+      yAxis: { type: 'value', name: '人数', minInterval: 1 },
+      series: [
+        { name: '930线人数', type: 'line', data: data.map((d: any) => d.c930||0), smooth: true,
+          label: { show: true, position: 'top', fontSize: 11 } },
+        { name: '特控线人数', type: 'line', data: data.map((d: any) => d.special||0), smooth: true,
+          label: { show: true, position: 'top', fontSize: 11 } },
+        { name: '一段线人数', type: 'line', data: data.map((d: any) => d.first||0), smooth: true,
+          label: { show: true, position: 'top', fontSize: 11 } },
+      ],
+    })
+    chartReady.value = true
+  } catch {} finally { loading.value = false }
 }
 </script>
