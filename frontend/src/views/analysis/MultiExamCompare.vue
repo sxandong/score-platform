@@ -18,7 +18,7 @@
         <el-table-column prop="typeName" label="指标" width="90" fixed />
         <el-table-column prop="totalCount" label="总人数" width="75" fixed />
         <el-table-column v-for="c in compareData.classes" :key="c.id" :label="c.name" width="85">
-          <template #default="{row}"><span :class="numClass(row[c.id])">{{ row[c.id]||0 }}</span></template>
+          <template #default="{row}"><span :class="numClass(row[c.id], row.typeName)">{{ row[c.id]||0 }}</span></template>
         </el-table-column>
       </el-table>
       </div>
@@ -117,8 +117,10 @@ function drawChart() {
   }, true)
 }
 
-function numClass(v: number): string {
+function numClass(v: number, typeName?: string): string {
   if (!v) return ''
+  if (typeName === '930线') return 'count-red'
+  if (typeName === '特控线') return 'count-orange'
   if (v >= 15) return 'count-high'
   if (v >= 5) return 'count-mid'
   return 'count-low'
@@ -131,4 +133,6 @@ function numClass(v: number): string {
 .count-high { color:var(--edu-green); font-weight:700; }
 .count-mid { color:var(--edu-gold); font-weight:600; }
 .count-low { color:var(--tx-secondary); }
+.count-red { color:#e04040; font-weight:700; }
+.count-orange { color:#e6a23c; font-weight:700; }
 </style>
