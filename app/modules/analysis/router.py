@@ -68,9 +68,31 @@ async def class_cutoff_stats(
             ), {"eid": exam_id, "cid": cid, "n": top_n})
             cls[f"top{top_n}"] = result.scalar_one()
 
+    # 各科优秀/良好线上线统计
+    subj_stats: dict[str, list] = {}
+    for key_prefix, label in [("subj_excellent_", "优秀"), ("subj_good_", "良好")]:
+        for subj_name in ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术']:
+            ct = f"{key_prefix}{subj_name}"
+            if ct in cutoffs:
+                sc = cutoffs[ct]
+                result = await db.execute(text(
+                    "SELECT s.class_id, COUNT(*) FROM scores sc2"
+                    " JOIN students s ON sc2.student_id=s.id"
+                    " JOIN subjects sub ON sc2.subject_id=sub.id"
+                    " WHERE sc2.exam_id=:eid AND sub.name=:sn AND sc2.total_score>=:sc"
+                    " GROUP BY s.class_id"
+                ), {"eid": exam_id, "sn": subj_name, "sc": sc})
+                for row in result.fetchall():
+                    cid, cnt = row[0], row[1]
+                    key = f"{subj_name}{label}"
+                    if key not in subj_stats:
+                        subj_stats[key] = []
+                    subj_stats[key].append({"class_id": cid, "count": cnt})
+
     return success_response(data={
         "classes": classes,
         "cutoffs": {k: v for k, v in cutoffs.items()},
+        "subj_stats": subj_stats,
     })
 
 
