@@ -153,7 +153,7 @@ var labels = data.labels;
 var colors = ['#5470c6','#91cc75','#fac858','#ee6666','#73c0de','#3ba272','#fc8452','#9a60b4','#ea7ccc','#48b8d0'];
 function makeChart(domId, series, yName, isRank, title) {{
   var el = document.getElementById(domId); if(!el) return;
-  var opt = {{title:title?{{text:title,left:'center',top:3,textStyle:{{fontSize:13,fontWeight:'bold'}}}}:undefined,tooltip:{{trigger:'axis'}},legend:{{top:0,type:'scroll'}},
+  var opt = {{title:title?{{text:title,left:'center',top:3,textStyle:{{fontSize:13,fontWeight:'bold'}}}}:undefined,tooltip:{{trigger:'axis'}},legend:{{show:false}},
     grid:{{left:55,right:20,top:title?35:40,bottom:25}},
     xAxis:{{type:'category',data:labels}},
     yAxis:{{type:'value',name:yName,minInterval:1}} }};
