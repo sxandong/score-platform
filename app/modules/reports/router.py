@@ -390,7 +390,7 @@ for(ci=0; ci<allData.length; ci++) {{
         tooltip:{{trigger:'axis'}},grid:{{left:50,right:15,top:32,bottom:22}},
         xAxis:{{type:'category',data:d.labels}},
         yAxis:{{type:'value',name:'排名',inverse:true,min:1,max:yM}},
-        series:[{{name:sn,type:'line',data:d.subjRanks[sn],smooth:true}}]}};
+        series:[{{name:sn,type:'line',data:d.subjRanks[sn],smooth:true,label:{{show:true,fontSize:9}}}}]}};
       echarts.init(div).setOption(opt);
     }});
   }})();
@@ -406,15 +406,15 @@ for(ci=0; ci<allData.length; ci++) {{
         tooltip:{{trigger:'axis'}},grid:{{left:50,right:15,top:32,bottom:22}},
         xAxis:{{type:'category',data:d.labels}},
         yAxis:{{type:'value',name:'排名',inverse:true,min:1,max:yM}},
-        series:[{{name:sn,type:'line',data:d.subjRanks[sn],smooth:true}}]}};
+        series:[{{name:sn,type:'line',data:d.subjRanks[sn],smooth:true,label:{{show:true,fontSize:9}}}}]}};
       echarts.init(div).setOption(opt);
     }});
   }})();
   // total/yw/t3
   var tM = d.totalCounts ? Math.max.apply(null,d.totalCounts) : 500;
-  makeChart('chart-total-'+si, [{{name:'总分排名',type:'line',data:d.totalRanks,smooth:true}}], '排名', true, '总分排名', tM);
-  makeChart('chart-yws-'+si, [{{name:'语数外排名',type:'line',data:d.ywsRanks,smooth:true}}], '排名', true, '语数外排名', tM);
-  makeChart('chart-t3-'+si, [{{name:'7选3排名',type:'line',data:d.t3Ranks,smooth:true}}], '排名', true, '7选3排名', tM);
+  makeChart('chart-total-'+si, [{{name:'总分排名',type:'line',data:d.totalRanks,smooth:true,label:{{show:true,fontSize:9}}}}], '排名', true, '总分排名', tM);
+  makeChart('chart-yws-'+si, [{{name:'语数外排名',type:'line',data:d.ywsRanks,smooth:true,label:{{show:true,fontSize:9}}}}], '排名', true, '语数外排名', tM);
+  makeChart('chart-t3-'+si, [{{name:'7选3排名',type:'line',data:d.t3Ranks,smooth:true,label:{{show:true,fontSize:9}}}}], '排名', true, '7选3排名', tM);
 }}
 </script>
 </body></html>"""
