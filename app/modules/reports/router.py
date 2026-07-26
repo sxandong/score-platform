@@ -233,8 +233,11 @@ async def class_report(
 
     ALL_SUBJS = ["语文","数学","外语","政治","历史","地理","物理","化学","生物","技术"]
     all_pages = []
+    all_chart_data = []
+    from app.models.exam import Score
+    from app.models.base_data import Subject as SubjModel
 
-    for student in students:
+    for si, student in enumerate(students):
         exams = await student_trend(db, student.id)
         if not exams:
             continue
@@ -268,6 +271,41 @@ async def class_report(
                 f"<td><b>{e.get('top3_total','')}</b></td><td>{t3_r}</td></tr>")
 
         header_cells = "".join(f"<th>{sn}</th>" for sn in subj_names)
+
+        # Chart data for this student
+        sorted_exams = sorted(exams, key=lambda x: x.get("exam_date","") or "")
+        clabels = [(e["exam_name"] or "")[:12] for e in sorted_exams]
+        sranks = {}; scounts = {}
+        for e in sorted_exams:
+            eid = e["exam_id"]
+            for sn in used_subjs:
+                result = await db.execute(select(SubjModel.id).where(SubjModel.name == sn).limit(1))
+                sid_row = result.scalar_one_or_none()
+                if not sid_row: continue
+                r3 = await db.execute(select(RankSnapshot.grade_rank).where(
+                    RankSnapshot.exam_id==eid, RankSnapshot.student_id==student.id,
+                    RankSnapshot.rank_type=="subject", RankSnapshot.subject_id==sid_row).limit(1))
+                sranks.setdefault(sn,[]).append(r3.scalar_one_or_none())
+                r4 = await db.execute(select(func.count(Score.id.distinct())).where(
+                    Score.exam_id==eid, Score.subject_id==sid_row))
+                scounts.setdefault(sn,[]).append(r4.scalar_one() or 1)
+        tcounts = []
+        for e in sorted_exams:
+            r = await db.execute(select(func.count(RankSnapshot.id)).where(
+                RankSnapshot.exam_id==e["exam_id"], RankSnapshot.rank_type=="total"))
+            tcounts.append(r.scalar_one() or 1)
+
+        cd = {
+            "labels": clabels,
+            "subjRanks": sranks, "subjCounts": scounts,
+            "totalRanks": [e.get("grade_rank") for e in sorted_exams],
+            "ywsRanks": [e.get("yws_rank") for e in sorted_exams],
+            "t3Ranks": [e.get("top3_rank") for e in sorted_exams],
+            "totalCounts": tcounts,
+        }
+        all_chart_data.append(cd)
+        cd_json = json.dumps(cd, ensure_ascii=False)
+
         all_pages.append(f"""
         <div class="page">
         <h1>学生成绩报告</h1>
@@ -280,28 +318,105 @@ async def class_report(
         <th>7选3总分</th><th>7选3排名</th></tr>
         {rows_html}
         </table>
+        <h3>成绩趋势图</h3>
+        <div class="chart-row" id="row-yws-{si}"></div>
+        <div class="chart-row" id="row-elec-{si}"></div>
+        <div class="chart-row">
+        <div class="chart" id="chart-total-{si}"></div>
+        <div class="chart" id="chart-yws-{si}"></div>
+        <div class="chart" id="chart-t3-{si}"></div>
+        </div>
         </div>""")
 
     from datetime import datetime
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
+    chart_data_js = json.dumps(all_chart_data, ensure_ascii=False)
+
     html = f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8"><style>
+<html><head><meta charset="utf-8">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
 body{{font-family:"PingFang SC","Microsoft YaHei",sans-serif;font-size:12px;color:#333;margin:0;padding:20px}}
 .page{{page-break-after:always;padding:10px 0}}
 .page:last-child{{page-break-after:auto}}
 h1{{text-align:center;font-size:18px;margin-bottom:2px;color:#1a5490}}
 h2{{text-align:center;font-size:12px;color:#999;margin-top:0;margin-bottom:6px}}
+h3{{color:#1a5490;font-size:14px;margin:12px 0 4px}}
 .info{{text-align:center;font-size:12px;margin-bottom:12px;color:#555}}
 .info span{{margin:0 10px}}
 table{{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px}}
 th,td{{border:1px solid #d0d7de;padding:4px 3px;text-align:center}}
 th{{background:#1a5490;color:#fff;font-weight:600;font-size:11px}}
 tr:nth-child(even){{background:#f6f8fa}}
+.chart{{width:100%;height:280px;margin-bottom:8px}}
+.chart-row{{display:flex;gap:8px;flex-wrap:wrap;page-break-inside:avoid}}
+.chart-row .chart{{flex:1;min-width:300px;max-width:calc(33.3% - 6px);height:260px}}
 @page{{size:A4 landscape;margin:8mm}}
 </style></head><body>
 {''.join(all_pages)}
-<p style="text-align:center;font-size:10px;color:#999">报告生成时间: {now} | 共 {len(all_pages)} 名学生</p>
+<p style="text-align:center;font-size:10px;color:#999;page-break-before:avoid">
+报告生成时间: {now} | 共 {len(all_pages)} 名学生
+</p>
+<script>
+var allData = {chart_data_js};
+function makeChart(domId, series, yName, isRank, title, yMax) {{
+  var el = document.getElementById(domId); if(!el) return;
+  var opt = {{title:title?{{text:title,left:'center',top:3,textStyle:{{fontSize:12,fontWeight:'bold'}}}}:undefined,
+    tooltip:{{trigger:'axis'}},legend:{{show:false}},
+    grid:{{left:50,right:15,top:title?32:35,bottom:22}},
+    xAxis:{{type:'category',data:allData[ci].labels}},
+    yAxis:{{type:'value',name:yName,minInterval:1}} }};
+  if(isRank) opt.yAxis.inverse = true;
+  if(yMax) opt.yAxis.max = yMax;
+  opt.series = series;
+  echarts.init(el).setOption(opt);
+}}
+var YWS = ['语文','数学','外语'];
+var ci;
+for(ci=0; ci<allData.length; ci++) {{
+  var d = allData[ci];
+  if(!d || !d.labels || d.labels.length<2) continue;
+  var si = ci;
+  // row-yws
+  (function(){{
+    var row = document.getElementById('row-yws-'+si); if(!row) return;
+    YWS.forEach(function(sn){{
+      if(!d.subjRanks[sn]) return;
+      var div = document.createElement('div'); div.className='chart'; div.style.height='250px';
+      row.appendChild(div);
+      var cnts = d.subjCounts[sn]||[]; var yM = Math.max.apply(null,cnts.filter(function(v){{return v>0}}))||1;
+      var opt = {{title:{{text:sn+'排名',left:'center',top:3,textStyle:{{fontSize:12,fontWeight:'bold'}}}},
+        tooltip:{{trigger:'axis'}},grid:{{left:50,right:15,top:32,bottom:22}},
+        xAxis:{{type:'category',data:d.labels}},
+        yAxis:{{type:'value',name:'排名',inverse:true,min:1,max:yM}},
+        series:[{{name:sn,type:'line',data:d.subjRanks[sn],smooth:true}}]}};
+      echarts.init(div).setOption(opt);
+    }});
+  }})();
+  // row-elec
+  (function(){{
+    var row = document.getElementById('row-elec-'+si); if(!row) return;
+    Object.keys(d.subjRanks).forEach(function(sn){{
+      if(YWS.indexOf(sn)>=0) return;
+      var div = document.createElement('div'); div.className='chart'; div.style.height='250px';
+      row.appendChild(div);
+      var cnts = d.subjCounts[sn]||[]; var yM = Math.max.apply(null,cnts.filter(function(v){{return v>0}}))||1;
+      var opt = {{title:{{text:sn+'排名',left:'center',top:3,textStyle:{{fontSize:12,fontWeight:'bold'}}}},
+        tooltip:{{trigger:'axis'}},grid:{{left:50,right:15,top:32,bottom:22}},
+        xAxis:{{type:'category',data:d.labels}},
+        yAxis:{{type:'value',name:'排名',inverse:true,min:1,max:yM}},
+        series:[{{name:sn,type:'line',data:d.subjRanks[sn],smooth:true}}]}};
+      echarts.init(div).setOption(opt);
+    }});
+  }})();
+  // total/yw/t3
+  var tM = d.totalCounts ? Math.max.apply(null,d.totalCounts) : 500;
+  makeChart('chart-total-'+si, [{{name:'总分排名',type:'line',data:d.totalRanks,smooth:true}}], '排名', true, '总分排名', tM);
+  makeChart('chart-yws-'+si, [{{name:'语数外排名',type:'line',data:d.ywsRanks,smooth:true}}], '排名', true, '语数外排名', tM);
+  makeChart('chart-t3-'+si, [{{name:'7选3排名',type:'line',data:d.t3Ranks,smooth:true}}], '排名', true, '7选3排名', tM);
+}}
+</script>
 </body></html>"""
 
     return StreamingResponse(
