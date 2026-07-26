@@ -198,9 +198,9 @@ var allSubjs = Object.keys(data.subjRanks);
 var elecSubjs = allSubjs.filter(function(s){{return ['语文','数学','外语'].indexOf(s)===-1}});
 renderSubjCharts('row-elec', elecSubjs);
 // Row 3: total/yw/t3 ranks
-makeChart('chart-total', [{{name:'总分排名',type:'line',data:data.totalRanks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true,'总分排名趋势');
-makeChart('chart-yws', [{{name:'语数外排名',type:'line',data:data.ywsRanks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true,'语数外排名趋势');
-makeChart('chart-t3', [{{name:'7选3排名',type:'line',data:data.t3Ranks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true,'7选3排名趋势');
+makeChart('chart-total', [{{name:'总分排名',type:'line',data:data.totalRanks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true,'总分排名趋势',data.totalCounts?Math.max.apply(null,data.totalCounts):500);
+makeChart('chart-yws', [{{name:'语数外排名',type:'line',data:data.ywsRanks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true,'语数外排名趋势',data.totalCounts?Math.max.apply(null,data.totalCounts):500);
+makeChart('chart-t3', [{{name:'7选3排名',type:'line',data:data.t3Ranks,smooth:true,label:{{show:true,fontSize:10}}}}], '排名', true,'7选3排名趋势',data.totalCounts?Math.max.apply(null,data.totalCounts):500);
 </script>
 
 <p style="text-align:right;font-size:10px;color:#999">报告生成时间: {now}</p>
