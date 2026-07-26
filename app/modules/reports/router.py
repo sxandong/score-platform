@@ -1,5 +1,6 @@
-"""Reports module — Excel/PDF export"""
+"""Reports module - Excel/HTML export"""
 from io import BytesIO
+import json
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy import select
@@ -9,7 +10,7 @@ from app.core.security import require_role
 from app.models.base_data import Student, Class
 from app.modules.reports import service
 
-router = APIRouter(prefix="/api/reports", tags=["Report Export"])
+router = APIRouter(prefix="/api/reports", tags=["Report"])
 
 
 @router.get("/student-report")
@@ -17,7 +18,6 @@ async def student_report(
     student_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    """Export student exam history as HTML report"""
     result = await db.execute(select(Student).where(Student.id == student_id))
     student = result.scalar_one_or_none()
     if not student:
@@ -33,76 +33,125 @@ async def student_report(
     if not exams:
         return JSONResponse({"code": 404, "message": "No scores"})
 
-    # Add yuwai/top3 ranks
     for e in exams:
         for rt, key in [("yuwai", "yws_rank"), ("top3", "top3_rank")]:
-            result2 = await db.execute(
+            r2 = await db.execute(
                 select(RankSnapshot.grade_rank).where(
                     RankSnapshot.exam_id == e["exam_id"],
                     RankSnapshot.student_id == student_id,
-                    RankSnapshot.rank_type == rt,
-                ).limit(1))
-            rv = result2.scalar_one_or_none()
+                    RankSnapshot.rank_type == rt).limit(1))
+            rv = r2.scalar_one_or_none()
             e[key] = rv if rv else ""
 
-    # Find subjects with actual scores
+    ALL_SUBJS = ["Chinese","Math","English","Politics","History","Geography","Physics","Chemistry","Biology","Tech"]
     used_subjs = set()
     for e in exams:
         for sn, sv in e.get("subjects", {}).items():
             if sv is not None and sv != "":
                 used_subjs.add(sn)
-    ALL_SUBJS = ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术']
     subj_names = [s for s in ALL_SUBJS if s in used_subjs]
 
-    # Build table
     rows_html = ""
     for e in exams:
         cells = "".join(f"<td>{e['subjects'].get(sn,'')}</td>" for sn in subj_names)
-        yws_rank = e.get("yws_rank","") or ""
-        t3_rank = e.get("top3_rank","") or ""
+        yw_r = e.get("yws_rank","") or ""
+        t3_r = e.get("top3_rank","") or ""
         rows_html += (
-            f"<tr><td>{e['exam_name']}</td><td>{e.get('exam_date','')}</td>"
-            f"{cells}"
+            f"<tr><td>{e['exam_name']}</td><td>{e.get('exam_date','')}</td>{cells}"
             f"<td><b>{e['total']}</b></td>"
             f"<td>{e.get('grade_rank','')}</td><td>{e.get('class_rank','')}</td>"
-            f"<td><b>{e.get('yws_total','')}</b></td><td>{yws_rank}</td>"
-            f"<td><b>{e.get('top3_total','')}</b></td><td>{t3_rank}</td>"
-            f"</tr>")
+            f"<td><b>{e.get('yws_total','')}</b></td><td>{yw_r}</td>"
+            f"<td><b>{e.get('top3_total','')}</b></td><td>{t3_r}</td></tr>")
 
     header_cells = "".join(f"<th>{sn}</th>" for sn in subj_names)
 
+    # Chart data
+    sorted_exams = sorted(exams, key=lambda x: x.get("exam_date","") or "")
+    chart_labels = [(e["exam_name"] or "")[:12] for e in sorted_exams]
+    subj_series = {}
+    for e in sorted_exams:
+        for sn, sv in e.get("subjects",{}).items():
+            if sv:
+                subj_series.setdefault(sn, []).append(float(sv) if sv else None)
+    chart_data = {
+        "labels": chart_labels,
+        "subjSeries": {k: v for k, v in subj_series.items()},
+        "totalRanks": [e.get("grade_rank") for e in sorted_exams],
+        "ywsRanks": [e.get("yws_rank") for e in sorted_exams],
+        "t3Ranks": [e.get("top3_rank") for e in sorted_exams],
+    }
+    chart_json = json.dumps(chart_data, ensure_ascii=False)
+
+    from datetime import datetime
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+
     html = f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8"><style>
+<html><head><meta charset="utf-8">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
 body{{font-family:"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;padding:20px;color:#333}}
 h1{{text-align:center;font-size:22px;margin-bottom:4px;color:#1a5490}}
 h2{{text-align:center;font-size:14px;color:#999;margin-top:0;margin-bottom:8px}}
+h3{{color:#1a5490;margin-top:24px;font-size:16px}}
 .info{{text-align:center;font-size:14px;margin-bottom:20px;color:#555}}
 .info span{{margin:0 12px}}
-table{{width:100%;border-collapse:collapse;font-size:13px}}
+table{{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px}}
 th,td{{border:1px solid #d0d7de;padding:6px 5px;text-align:center}}
 th{{background:#1a5490;color:#fff;font-weight:600;font-size:13px}}
 tr:nth-child(even){{background:#f6f8fa}}
-tr:hover{{background:#e8f0fe}}
-@page{{size:A4 landscape;margin:10mm}}
+.chart{{width:100%;height:360px;margin-bottom:16px}}
+.chart-row{{display:flex;gap:12px;flex-wrap:wrap}}
+.chart-row .chart{{flex:1;min-width:450px;height:340px}}
 </style></head><body>
-<h1>学生成绩报告</h1>
-<h2>普通高中教学质量分析系统</h2>
-<div class="info">
-姓名: {student.name} | 学籍号: {student.student_no} | 班级: {class_name}
-</div>
+<h1>Student Score Report</h1>
+<h2>High School Teaching Quality System</h2>
+<div class="info"><span>Name: {student.name}</span><span>No: {student.student_no}</span><span>Class: {class_name}</span></div>
 <table>
-<tr><th>考试</th><th>日期</th>{header_cells}
-<th>总分</th><th>年级排名</th><th>班级排名</th>
-<th>语数外总分</th><th>语数外排名</th>
-<th>7选3总分</th><th>7选3排名</th></tr>
+<tr><th>Exam</th><th>Date</th>{header_cells}
+<th>Total</th><th>G-Rank</th><th>C-Rank</th>
+<th>YWY Total</th><th>YWY Rank</th>
+<th>Top3 Total</th><th>Top3 Rank</th></tr>
 {rows_html}
 </table>
-<p style="text-align:right;font-size:10px;color:#999;margin-top:16px">
-报告生成时间: __NOW__
-</p></body></html>"""
 
-    from datetime import datetime
-    html = html.replace("__NOW__", datetime.now().strftime("%Y-%m-%d %H:%M"))
+<h3>Score Trend Charts</h3>
+<div class="chart-row">
+<div class="chart" id="chart-subj"></div>
+<div class="chart" id="chart-total"></div>
+</div>
+<div class="chart-row">
+<div class="chart" id="chart-yws"></div>
+<div class="chart" id="chart-t3"></div>
+</div>
+
+<script>
+var data = {chart_json};
+var labels = data.labels;
+var colors = ['#5470c6','#91cc75','#fac858','#ee6666','#73c0de','#3ba272','#fc8452','#9a60b4','#ea7ccc','#48b8d0'];
+function makeChart(domId, series, yName, isRank) {{
+  var el = document.getElementById(domId); if(!el) return;
+  var opt = {{tooltip:{{trigger:'axis'}},legend:{{top:0,type:'scroll'}},
+    grid:{{left:55,right:20,top:40,bottom:25}},
+    xAxis:{{type:'category',data:labels}},
+    yAxis:{{type:'value',name:yName,minInterval:1}} }};
+  if(isRank) opt.yAxis.inverse = true;
+  opt.series = series;
+  echarts.init(el).setOption(opt);
+}}
+var subjArr = [], idx = 0;
+for(var k in data.subjSeries) {{
+  subjArr.push({{name:k,type:'line',data:data.subjSeries[k],smooth:true,
+    itemStyle:{{color:colors[idx%10]}},label:{{show:true,fontSize:10}}}});
+  idx++;
+}}
+makeChart('chart-subj', subjArr, 'Score', false);
+makeChart('chart-total', [{{name:'Total Rank',type:'line',data:data.totalRanks,smooth:true,label:{{show:true,fontSize:10}}}}], 'Rank', true);
+makeChart('chart-yws', [{{name:'YWY Rank',type:'line',data:data.ywsRanks,smooth:true,label:{{show:true,fontSize:10}}}}], 'Rank', true);
+makeChart('chart-t3', [{{name:'Top3 Rank',type:'line',data:data.t3Ranks,smooth:true,label:{{show:true,fontSize:10}}}}], 'Rank', true);
+</script>
+
+<p style="text-align:right;font-size:10px;color:#999">Generated: {now}</p>
+</body></html>"""
 
     return StreamingResponse(
         BytesIO(html.encode("utf-8")),
@@ -122,7 +171,5 @@ async def export_score_sheet(
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={
-            "Content-Disposition": f"attachment; filename=score_{exam_id}_{class_id}.xlsx"
-        },
+        headers={"Content-Disposition": f"attachment; filename=score_{exam_id}_{class_id}.xlsx"},
     )
