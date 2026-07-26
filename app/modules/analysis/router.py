@@ -108,9 +108,9 @@ async def multi_exam_compare(
     if len(ids) < 2:
         return success_response(data={"exams": [], "classes": [], "data": {}})
 
+    ids_str = ','.join(str(i) for i in ids)
     result = await db.execute(
-        text("SELECT id, name FROM exams WHERE id IN :ids ORDER BY exam_date"),
-        {"ids": tuple(ids)})
+        text(f"SELECT id, name FROM exams WHERE id IN ({ids_str}) ORDER BY exam_date"))
     exams = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
 
     result = await db.execute(text("SELECT id, name FROM classes ORDER BY id"))

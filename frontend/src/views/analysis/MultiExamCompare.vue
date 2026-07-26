@@ -3,9 +3,10 @@
     <div class="page-header"><h3>班级对比分析</h3><p>多考试各班达线人数对比</p></div>
 
     <el-form :inline="true">
-      <el-form-item label="选择考试"><el-select v-model="selectedExams" multiple placeholder="至少选2次考试" style="width:500px" @change="loadData">
+      <el-form-item label="选择考试"><el-select v-model="selectedExams" multiple placeholder="至少选2次考试" style="width:500px">
         <el-option v-for="e in exams" :key="e.id" :label="e.name" :value="e.id" /></el-select>
       </el-form-item>
+      <el-form-item><el-button type="primary" @click="loadData" :disabled="selectedExams.length<2">对比分析</el-button></el-form-item>
     </el-form>
 
     <el-card v-if="selectedExams.length>=2 && compareData.exams" v-loading="loading">
