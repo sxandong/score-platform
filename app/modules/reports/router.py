@@ -164,7 +164,7 @@ function makeChart(domId, series, yName, isRank, title, yMax) {{
   var opt = {{title:title?{{text:title,left:'center',top:3,textStyle:{{fontSize:13,fontWeight:'bold'}}}}:undefined,tooltip:{{trigger:'axis'}},legend:{{show:false}},
     grid:{{left:55,right:20,top:title?35:40,bottom:25}},
     xAxis:{{type:'category',data:labels}},
-    yAxis:{{type:'value',name:yName,minInterval:1,max:yMax||undefined}} }};
+    yAxis:{{type:'value',minInterval:1,max:yMax||undefined}} }};
   if(isRank) opt.yAxis.inverse = true;
   opt.series = series;
   echarts.init(el).setOption(opt);
@@ -185,7 +185,7 @@ function renderSubjCharts(rowId, subjList) {{
       tooltip:{{trigger:'axis'}},
       grid:{{left:55,right:20,top:35,bottom:25}},
       xAxis:{{type:'category',data:labels}},
-      yAxis:{{type:'value',name:'排名',inverse:true,min:1,max:yMax}},
+      yAxis:{{type:'value',inverse:true,min:1,max:yMax}},
       series:[{{name:k+'排名',type:'line',data:rankData,smooth:true,
         label:{{show:true,fontSize:10}}}}]}};
     echarts.init(div).setOption(opt);
@@ -389,7 +389,7 @@ for(ci=0; ci<allData.length; ci++) {{
       var opt = {{title:{{text:sn+'排名',left:'center',top:3,textStyle:{{fontSize:12,fontWeight:'bold'}}}},
         tooltip:{{trigger:'axis'}},grid:{{left:50,right:15,top:32,bottom:22}},
         xAxis:{{type:'category',data:d.labels}},
-        yAxis:{{type:'value',name:'排名',inverse:true,min:1,max:yM}},
+        yAxis:{{type:'value',inverse:true,min:1,max:yM}},
         series:[{{name:sn,type:'line',data:d.subjRanks[sn],smooth:true,label:{{show:true,fontSize:9}}}}]}};
       echarts.init(div).setOption(opt);
     }});
@@ -405,7 +405,7 @@ for(ci=0; ci<allData.length; ci++) {{
       var opt = {{title:{{text:sn+'排名',left:'center',top:3,textStyle:{{fontSize:12,fontWeight:'bold'}}}},
         tooltip:{{trigger:'axis'}},grid:{{left:50,right:15,top:32,bottom:22}},
         xAxis:{{type:'category',data:d.labels}},
-        yAxis:{{type:'value',name:'排名',inverse:true,min:1,max:yM}},
+        yAxis:{{type:'value',inverse:true,min:1,max:yM}},
         series:[{{name:sn,type:'line',data:d.subjRanks[sn],smooth:true,label:{{show:true,fontSize:9}}}}]}};
       echarts.init(div).setOption(opt);
     }});
