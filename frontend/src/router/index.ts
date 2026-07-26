@@ -73,6 +73,12 @@ const router = createRouter({
           path: 'analysis/class-compare',
           name: 'class-compare',
           component: () => import('@/views/analysis/ClassCompare.vue'),
+          meta: { title: '班级统计', roles: ['admin', 'director', 'teacher'] },
+        },
+        {
+          path: 'analysis/multi-exam-compare',
+          name: 'multi-exam-compare',
+          component: () => import('@/views/analysis/MultiExamCompare.vue'),
           meta: { title: '班级对比', roles: ['admin', 'director', 'teacher'] },
         },
         {

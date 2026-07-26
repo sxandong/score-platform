@@ -96,6 +96,51 @@ async def class_cutoff_stats(
     })
 
 
+@router.get("/multi-exam-compare")
+async def multi_exam_compare(
+    exam_ids: str = "",
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin", "director", "teacher")),
+):
+    """多考试班级对比: ?exam_ids=1,2,3"""
+    from sqlalchemy import text
+    ids = [int(x.strip()) for x in exam_ids.split(",") if x.strip()]
+    if len(ids) < 2:
+        return success_response(data={"exams": [], "classes": [], "data": {}})
+
+    result = await db.execute(
+        text("SELECT id, name FROM exams WHERE id IN :ids ORDER BY exam_date"),
+        {"ids": tuple(ids)})
+    exams = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
+
+    result = await db.execute(text("SELECT id, name FROM classes ORDER BY id"))
+    classes = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
+
+    data: dict = {}
+    for eid in ids:
+        result = await db.execute(text(
+            "SELECT cutoff_type, score FROM score_cutoffs WHERE exam_id=:eid"
+        ), {"eid": eid})
+        cutoffs = {r[0]: float(r[1]) for r in result.fetchall()}
+
+        class_counts = []
+        for cls in classes:
+            cid = cls["id"]
+            entry = {"class_id": cid, "class_name": cls["name"]}
+            for ct, key in [("score_930","c930"), ("special","special"), ("first","first")]:
+                if ct in cutoffs:
+                    result = await db.execute(text(
+                        "SELECT COUNT(*) FROM rank_snapshots rs JOIN students s ON rs.student_id=s.id"
+                        " WHERE rs.exam_id=:eid AND rs.rank_type='total' AND s.class_id=:cid"
+                        " AND rs.total_score >= :sc"
+                    ), {"eid": eid, "cid": cid, "sc": cutoffs[ct]})
+                    entry[key] = result.scalar_one()
+            class_counts.append(entry)
+        data[str(eid)] = {"cutoffs": cutoffs, "class_counts": class_counts}
+
+    return success_response(data={"exams": exams, "classes": classes, "data": data})
+
+
 @router.get("/class-compare")
 async def class_compare(
     exam_id: int,

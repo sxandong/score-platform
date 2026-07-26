@@ -32,6 +32,7 @@
         <el-sub-menu v-if="auth.hasPermission('analysis:view')" index="analysis">
           <template #title><el-icon><TrendCharts /></el-icon><span>统计分析</span></template>
           <el-menu-item index="/analysis/class-compare">班级统计</el-menu-item>
+          <el-menu-item index="/analysis/multi-exam-compare">班级对比</el-menu-item>
           <el-menu-item index="/analysis/score-distribution">分数段统计</el-menu-item>
           <el-menu-item index="/analysis/student-trend">成绩趋势</el-menu-item>
         </el-sub-menu>
