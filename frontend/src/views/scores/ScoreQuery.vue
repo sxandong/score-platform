@@ -319,12 +319,13 @@ function drawCharts(data: any[], numSid: number) {
     const inst = echarts.getInstanceByDom(el) || echarts.init(el)
     inst.setOption({
       tooltip: { trigger: 'axis' },
-      grid: { left: 55, right: 20, top: 20, bottom: 25 },
+      grid: { left: 55, right: 50, top: 20, bottom: 25 },
       xAxis: { type: 'category', data: labels },
       yAxis: { type: 'value', name: '排名', inverse: true, min: 1, max: yMax || maxTotal },
       series: [{ name: title, type: 'line', data: vals, smooth: true,
         label: { show: true, position: 'top', fontSize: 11 },
-        markLine: { data: [{ type: 'average', name: '平均排名' }], lineStyle: { type: 'dashed' } },
+        markLine: { data: [{ type: 'average', name: '平均' }], lineStyle: { type: 'dashed' },
+          label: { formatter: '{c}', fontSize: 11 } },
       }],
     }, true)
   }
@@ -352,12 +353,13 @@ function drawCharts(data: any[], numSid: number) {
     const inst = echarts.getInstanceByDom(el) || echarts.init(el)
     inst.setOption({
       tooltip: { trigger: 'axis' },
-      grid: { left: 55, right: 20, top: 20, bottom: 25 },
+      grid: { left: 55, right: 50, top: 20, bottom: 25 },
       xAxis: { type: 'category', data: labels },
       yAxis: { type: 'value', name: '排名', inverse: true, min: 1, max: yMax },
       series: [{ name: sn+'排名', type: 'line', data: ranks, smooth: true,
         label: { show: true, position: 'top', fontSize: 11 },
-        markLine: { data: [{ type: 'average', name: '平均排名' }], lineStyle: { type: 'dashed' } } }],
+        markLine: { data: [{ type: 'average', name: '平均' }], lineStyle: { type: 'dashed' },
+          label: { formatter: '{c}', fontSize: 11 } } }],
     }, true)
   })
 
