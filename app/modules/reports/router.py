@@ -1,4 +1,4 @@
-"""Reports 模块路由"""
+"""Reports module — Excel/PDF export"""
 from io import BytesIO
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -9,7 +9,7 @@ from app.core.security import require_role
 from app.models.base_data import Student, Class
 from app.modules.reports import service
 
-router = APIRouter(prefix="/api/reports", tags=["报表导出"])
+router = APIRouter(prefix="/api/reports", tags=["Report Export"])
 
 
 @router.get("/student-report")
@@ -17,15 +17,11 @@ async def student_report(
     student_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    """导出学生历次考试成绩PDF报告"""
-    from jinja2 import Template
-    from app.models.base_data import Student, Class
-
-    # 获取学生信息
+    """Export student exam history as HTML report"""
     result = await db.execute(select(Student).where(Student.id == student_id))
     student = result.scalar_one_or_none()
     if not student:
-        return JSONResponse({"code":404,"message":"学生不存在"})
+        return JSONResponse({"code": 404, "message": "Student not found"})
 
     result = await db.execute(select(Class).where(Class.id == student.class_id))
     cls = result.scalar_one_or_none()
@@ -35,52 +31,49 @@ async def student_report(
     from app.models.audit import RankSnapshot
     exams = await student_trend(db, student_id)
     if not exams:
-        return JSONResponse({"code":404,"message":"该学生没有考试成绩"})
+        return JSONResponse({"code": 404, "message": "No scores"})
 
-    # 补充语数外/7选3排名
+    # Add yuwai/top3 ranks
     for e in exams:
         for rt, key in [("yuwai", "yws_rank"), ("top3", "top3_rank")]:
-            result = await db.execute(
+            result2 = await db.execute(
                 select(RankSnapshot.grade_rank).where(
                     RankSnapshot.exam_id == e["exam_id"],
                     RankSnapshot.student_id == student_id,
                     RankSnapshot.rank_type == rt,
                 ).limit(1))
-            row = result.scalar_one_or_none()
-            e[key] = row if row else ""
+            rv = result2.scalar_one_or_none()
+            e[key] = rv if rv else ""
 
-    # 找有成绩的科目
+    # Find subjects with actual scores
     used_subjs = set()
     for e in exams:
-        for sn, sv in e.get('subjects', {}).items():
-            if sv is not None and sv != '':
+        for sn, sv in e.get("subjects", {}).items():
+            if sv is not None and sv != "":
                 used_subjs.add(sn)
-    subj_names = [s for s in ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术'] if s in used_subjs]
-    total_exams = len(exams)
+    ALL_SUBJS = ['语文','数学','外语','政治','历史','地理','物理','化学','生物','技术']
+    subj_names = [s for s in ALL_SUBJS if s in used_subjs]
 
+    # Build table
     rows_html = ""
     for e in exams:
-        cells = ""
-        for sn in subj_names:
-            cells += f"<td>{e['subjects'].get(sn,'')}</td>"
-        yws_rank = e.get('yws_rank','') or ''
-        t3_rank = e.get('top3_rank','') or ''
-        rows_html += f"""
-        <tr>
-            <td>{e['exam_name']}</td>
-            <td>{e.get('exam_date','')}</td>
-            {cells}
-            <td><b>{e.get('yws_total','')}</b></td><td>{yws_rank}</td>
-            <td><b>{e.get('top3_total','')}</b></td><td>{t3_rank}</td>
-            <td><b>{e['total']}</b></td>
-            <td>{e.get('grade_rank','')}</td><td>{e.get('class_rank','')}</td>
-        </tr>"""
+        cells = "".join(f"<td>{e['subjects'].get(sn,'')}</td>" for sn in subj_names)
+        yws_rank = e.get("yws_rank","") or ""
+        t3_rank = e.get("top3_rank","") or ""
+        rows_html += (
+            f"<tr><td>{e['exam_name']}</td><td>{e.get('exam_date','')}</td>"
+            f"{cells}"
+            f"<td><b>{e['total']}</b></td>"
+            f"<td>{e.get('grade_rank','')}</td><td>{e.get('class_rank','')}</td>"
+            f"<td><b>{e.get('yws_total','')}</b></td><td>{yws_rank}</td>"
+            f"<td><b>{e.get('top3_total','')}</b></td><td>{t3_rank}</td>"
+            f"</tr>")
 
     header_cells = "".join(f"<th>{sn}</th>" for sn in subj_names)
 
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
-body{{font-family:'PingFang SC','Microsoft YaHei',sans-serif;font-size:12px;padding:20px}}
+body{{font-family:"PingFang SC","Microsoft YaHei",sans-serif;font-size:12px;padding:20px}}
 h1{{text-align:center;font-size:18px;margin-bottom:4px}}
 h2{{text-align:center;font-size:14px;color:#666;margin-top:0;margin-bottom:4px}}
 .info{{text-align:center;font-size:12px;margin-bottom:16px;color:#333}}
@@ -88,25 +81,32 @@ table{{width:100%;border-collapse:collapse;font-size:10px}}
 th,td{{border:1px solid #ccc;padding:4px 3px;text-align:center}}
 th{{background:#e8f0fe;font-weight:bold}}
 tr:nth-child(even){{background:#fafcfd}}
-.total-row td{{font-weight:bold}}
 @page{{size:A4 landscape;margin:10mm}}
 </style></head><body>
 <h1>学生成绩报告</h1>
 <h2>普通高中教学质量分析系统</h2>
-<div class="info">姓名: {student.name} | 学籍号: {student.student_no} | 班级: {class_name}</div>
+<div class="info">
+姓名: {student.name} | 学籍号: {student.student_no} | 班级: {class_name}
+</div>
 <table>
-<tr><th>考试</th><th>日期</th>{header_cells}<th>语数外总分</th><th>语数外排名</th><th>7选3总分</th><th>7选3排名</th><th>总分</th><th>年级排名</th><th>班级排名</th></tr>
+<tr><th>考试</th><th>日期</th>{header_cells}
+<th>总分</th><th>年级排名</th><th>班级排名</th>
+<th>语数外总分</th><th>语数外排名</th>
+<th>7选3总分</th><th>7选3排名</th></tr>
 {rows_html}
 </table>
-<p style="text-align:right;font-size:10px;color:#999;margin-top:16px">报告生成时间: __NOW__</p>
-</body></html>"""
+<p style="text-align:right;font-size:10px;color:#999;margin-top:16px">
+报告生成时间: __NOW__
+</p></body></html>"""
 
     from datetime import datetime
     html = html.replace("__NOW__", datetime.now().strftime("%Y-%m-%d %H:%M"))
 
-    return StreamingResponse(BytesIO(html.encode('utf-8')),
+    return StreamingResponse(
+        BytesIO(html.encode("utf-8")),
         media_type="text/html; charset=utf-8",
-        headers={"Content-Disposition": "inline; filename=student_report.html"})
+        headers={"Content-Disposition": "inline; filename=student_report.html"},
+    )
 
 
 @router.get("/score-sheet")
@@ -121,6 +121,6 @@ async def export_score_sheet(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition": f"attachment; filename=成绩单_{exam_id}_{class_id}.xlsx"
+            "Content-Disposition": f"attachment; filename=score_{exam_id}_{class_id}.xlsx"
         },
     )
