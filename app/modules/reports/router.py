@@ -100,8 +100,8 @@ th,td{{border:1px solid #d0d7de;padding:6px 5px;text-align:center}}
 th{{background:#1a5490;color:#fff;font-weight:600;font-size:13px}}
 tr:nth-child(even){{background:#f6f8fa}}
 .chart{{width:100%;height:360px;margin-bottom:16px}}
-.chart-row{{display:flex;gap:12px;flex-wrap:wrap}}
-.chart-row .chart{{flex:1;min-width:450px;height:340px}}
+.chart-row{{display:flex;gap:12px;flex-wrap:wrap;page-break-inside:avoid}}
+.chart-row .chart{{flex:1;min-width:320px;max-width:calc(33.3% - 8px);height:300px}}
 </style></head><body>
 <h1>学生成绩报告</h1>
 <h2>普通高中教学质量分析系统</h2>
@@ -115,11 +115,9 @@ tr:nth-child(even){{background:#f6f8fa}}
 </table>
 
 <h3>成绩趋势图</h3>
-<div class="chart-row">
 <div class="chart-row" id="subj-charts"></div>
-<div class="chart" id="chart-total"></div>
-</div>
 <div class="chart-row">
+<div class="chart" id="chart-total"></div>
 <div class="chart" id="chart-yws"></div>
 <div class="chart" id="chart-t3"></div>
 </div>
