@@ -316,6 +316,9 @@ function drawCharts(data: any[], numSid: number) {
     const el = document.getElementById(domId); if (!el) return
     const vals = sorted.map((r:any) => toNum(r[rankKey]))
     if (vals.every(v => v === null)) return
+    // 手动算平均(排除null)
+    const validVals = vals.filter(v => v !== null) as number[]
+    const avg = validVals.length ? Math.round(validVals.reduce((a,b) => a+b, 0) / validVals.length) : 0
     const inst = echarts.getInstanceByDom(el) || echarts.init(el)
     inst.setOption({
       tooltip: { trigger: 'axis' },
@@ -324,7 +327,8 @@ function drawCharts(data: any[], numSid: number) {
       yAxis: { type: 'value', name: '排名', inverse: true, min: 1, max: yMax || maxTotal },
       series: [{ name: title, type: 'line', data: vals, smooth: true,
         label: { show: true, position: 'top', fontSize: 11 },
-        markLine: { data: [{ type: 'average', name: '平均' }] } }],
+        markLine: { silent: true, symbol: 'none', label: { formatter: `平均排名: ${avg}` },
+          data: [{ yAxis: avg, name: '平均排名' }] } }],
     }, true)
   }
 
