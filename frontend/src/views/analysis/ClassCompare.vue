@@ -14,7 +14,7 @@
         <el-table-column prop="label" label="指标" width="140" fixed />
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="90">
           <template #default="{row}">
-            <span :class="numClass(row[c.id])">{{ row[c.id] !== undefined ? row[c.id] : '-' }}</span>
+            <span :class="numClass(row[c.id], row.label)">{{ row[c.id] !== undefined ? row[c.id] : '-' }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -41,7 +41,7 @@ const transposed = computed(() => {
     cls.forEach((c: any) => { row[c.id] = c[key] !== undefined ? c[key] : '-' })
     rows.push(row)
   }
-  if (cutoffs.value.score_930) addRow(`≥${cutoffs.value.score_930}(930线)`, 'count_930')
+  if (cutoffs.value.score_930) addRow(`930线(≥${cutoffs.value.score_930})`, 'count_930')
   if (cutoffs.value.special) addRow(`特控线(≥${cutoffs.value.special})`, 'count_special')
   addRow('前20名', 'top20')
   addRow('前30名', 'top30')
@@ -65,8 +65,10 @@ async function loadData() {
   } catch {} finally { loading.value = false }
 }
 
-function numClass(v: number): string {
+function numClass(v: number, label: string): string {
   if (!v) return ''
+  const isKey = /930|特控/.test(label)
+  if (isKey && v > 0) return 'count-red'
   if (v >= 15) return 'count-high'
   if (v >= 5) return 'count-mid'
   return 'count-low'
@@ -78,4 +80,5 @@ function numClass(v: number): string {
 .count-high { color:var(--edu-green); font-weight:700; }
 .count-mid { color:var(--edu-gold); font-weight:600; }
 .count-low { color:var(--tx-secondary); }
+.count-red { color:#e04040; font-weight:700; }
 </style>
