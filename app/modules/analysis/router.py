@@ -10,6 +10,70 @@ from app.modules.analysis import service
 router = APIRouter(prefix="/api/analysis", tags=["统计分析"])
 
 
+@router.get("/class-cutoff-stats")
+async def class_cutoff_stats(
+    exam_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin", "director", "teacher")),
+):
+    """各班级分数线人数统计"""
+    from sqlalchemy import text
+
+    # 获取分数线设置
+    result = await db.execute(text(
+        "SELECT cutoff_type, score FROM score_cutoffs WHERE exam_id=:eid"
+    ), {"eid": exam_id})
+    cutoffs: dict[str, float] = {row[0]: float(row[1]) for row in result.fetchall()}
+
+    # 获取所有班级
+    result = await db.execute(text("SELECT id, name FROM classes ORDER BY id"))
+    classes = [{"id": row[0], "name": row[1]} for row in result.fetchall()]
+
+    # 对每个班级统计各项指标
+    for cls in classes:
+        cid = cls["id"]
+        # 930线人数
+        if "score_930" in cutoffs:
+            result = await db.execute(text(
+                "SELECT COUNT(*) FROM rank_snapshots rs JOIN students s ON rs.student_id=s.id"
+                " WHERE rs.exam_id=:eid AND rs.rank_type='total' AND s.class_id=:cid"
+                " AND rs.total_score >= :sc"
+            ), {"eid": exam_id, "cid": cid, "sc": cutoffs["score_930"]})
+            cls["count_930"] = result.scalar_one()
+
+        # 特控线人数
+        if "special" in cutoffs:
+            result = await db.execute(text(
+                "SELECT COUNT(*) FROM rank_snapshots rs JOIN students s ON rs.student_id=s.id"
+                " WHERE rs.exam_id=:eid AND rs.rank_type='total' AND s.class_id=:cid"
+                " AND rs.total_score >= :sc"
+            ), {"eid": exam_id, "cid": cid, "sc": cutoffs["special"]})
+            cls["count_special"] = result.scalar_one()
+
+        # 一段线人数
+        if "first" in cutoffs:
+            result = await db.execute(text(
+                "SELECT COUNT(*) FROM rank_snapshots rs JOIN students s ON rs.student_id=s.id"
+                " WHERE rs.exam_id=:eid AND rs.rank_type='total' AND s.class_id=:cid"
+                " AND rs.total_score >= :sc"
+            ), {"eid": exam_id, "cid": cid, "sc": cutoffs["first"]})
+            cls["count_first"] = result.scalar_one()
+
+        # 前N位人数
+        for top_n in [20, 30, 50, 80, 100]:
+            result = await db.execute(text(
+                "SELECT COUNT(*) FROM rank_snapshots rs JOIN students s ON rs.student_id=s.id"
+                " WHERE rs.exam_id=:eid AND rs.rank_type='total' AND s.class_id=:cid"
+                " AND rs.grade_rank <= :n"
+            ), {"eid": exam_id, "cid": cid, "n": top_n})
+            cls[f"top{top_n}"] = result.scalar_one()
+
+    return success_response(data={
+        "classes": classes,
+        "cutoffs": {k: v for k, v in cutoffs.items()},
+    })
+
+
 @router.get("/class-compare")
 async def class_compare(
     exam_id: int,
