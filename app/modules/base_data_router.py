@@ -486,6 +486,9 @@ async def batch_import_students(
             skipped += 1; continue
         electives_str = ','.join(selected)
 
+        # 读取入学年份
+        enroll_year = int(row.get("入学年份", row.get("enrollment_year", 2026))) if pd.notna(row.get("入学年份", row.get("enrollment_year", 2026))) else 2026
+
         # 已存在则更新，不存在则新增
         result = await db.execute(select(Student).where(Student.student_no == sno))
         existing = result.scalar_one_or_none()
@@ -494,10 +497,11 @@ async def batch_import_students(
             existing.class_id = cid
             if electives_str:
                 existing.electives = electives_str
+            existing.enrollment_year = enroll_year
             updated += 1
         else:
             db.add(Student(student_no=sno, name=name, class_id=cid,
-                          electives=electives_str))
+                          electives=electives_str, enrollment_year=enroll_year))
             created += 1
 
     await db.flush()
