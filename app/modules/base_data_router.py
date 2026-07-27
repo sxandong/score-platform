@@ -295,6 +295,7 @@ async def batch_import_classes(
 async def list_students(
     class_id: int | None = None,
     keyword: str | None = None,
+    enrollment_year: int | None = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
@@ -302,6 +303,7 @@ async def list_students(
 ):
     conditions = []
     if class_id: conditions.append(Student.class_id == class_id)
+    if enrollment_year: conditions.append(Student.enrollment_year == enrollment_year)
     if keyword: conditions.append(
         (Student.name.contains(keyword)) | (Student.student_no.contains(keyword))
     )

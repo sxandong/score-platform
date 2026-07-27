@@ -2,8 +2,11 @@
   <div>
     <h3>学生管理</h3>
     <el-row :gutter="8" style="margin-bottom:16px">
+      <el-col :span="2"><el-select v-model="filterYear" placeholder="入学年份" clearable @change="onYearChange" style="width:110px">
+        <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" />
+      </el-select></el-col>
       <el-col :span="3"><el-select v-model="filterClassId" placeholder="按班级" clearable @change="loadStudents">
-        <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
+        <el-option v-for="c in filteredClasses" :key="c.id" :label="c.name" :value="c.id" />
       </el-select></el-col>
       <el-col :span="3"><el-input v-model="keyword" placeholder="搜索" clearable @input="loadStudents" /></el-col>
       <el-col :span="3"><el-button type="primary" @click="openDialog()">新增学生</el-button></el-col>
@@ -114,14 +117,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import api from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const students = ref<any[]>([]); const classes = ref<any[]>([]); const grades = ref<any[]>([])
 const loading = ref(false); const page = ref(1); const total = ref(0)
 const filterClassId = ref<number | null>(null); const keyword = ref('')
+const filterYear = ref<number | null>(null)
+const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
 const selected = ref<any[]>([])
+const filteredClasses = computed(() => {
+  if (!filterYear.value) return classes.value
+  return classes.value.filter((c: any) => c.name.includes(String(filterYear.value).slice(2)))
+})
+
+function onYearChange() {
+  filterClassId.value = null
+  loadStudents()
+}
 
 const ELEC_SUBJS = ['政治','历史','地理','物理','化学','生物','技术']
 const dialog = ref(false); const editing = ref<any>(null)
@@ -137,6 +151,7 @@ async function loadStudents() {
   try {
     const params: any = { page: page.value, per_page: 50 }
     if (filterClassId.value) params.class_id = filterClassId.value
+    if (filterYear.value) params.enrollment_year = filterYear.value
     if (keyword.value) params.keyword = keyword.value
     const r = await api.get('/students', { params })
     students.value = r.data; total.value = r.meta.total
