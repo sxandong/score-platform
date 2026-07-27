@@ -13,21 +13,9 @@
     <el-row :gutter="16">
       <el-col :span="17">
         <el-card>
-          <template #header>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-weight:600">学生选科列表</span>
-              <div>
-                <el-select v-model="batchElective" placeholder="批量设置" style="width:180px" size="small">
-                  <el-option v-for="c in hotCombos" :key="c.combo" :label="c.combo+' ('+c.count+'人)'" :value="c.combo" />
-                </el-select>
-                <el-button size="small" type="primary" :disabled="!selected.length||!batchElective"
-                  @click="batchSet" style="margin-left:8px">批量设置 ({{ selected.length }})</el-button>
-              </div>
-            </div>
-          </template>
+          <template #header><span style="font-weight:600">学生选科列表</span></template>
           <el-table :data="students" border stripe size="small" v-loading="loading"
-            @selection-change="(v:any)=>selected=v" max-height="550">
-            <el-table-column type="selection" width="40" />
+            max-height="550">
             <el-table-column prop="student_no" label="学籍号" width="130" />
             <el-table-column prop="name" label="姓名" width="80" />
             <el-table-column prop="enrollment_year" label="入学年份" width="90" />
@@ -87,7 +75,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import api from '@/api'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 
 const ELEC_SUBJS = ['政治','历史','地理','物理','化学','生物','技术']
 const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
@@ -97,9 +85,7 @@ const filterYear = ref<number | null>(null)
 const filterClassId = ref<number | null>(null)
 const students = ref<any[]>([]); const loading = ref(false)
 const page = ref(1); const total = ref(0)
-const selected = ref<any[]>([]); const batchElective = ref('')
 const combos = ref<any[]>([]); const totalStudents = ref(0); const totalWithElectives = ref(0)
-const hotCombos = ref<any[]>([])
 
 onMounted(async () => {
   try { const r = await api.get('/classes'); classes.value = r.data } catch {}
@@ -143,7 +129,7 @@ async function loadStats() {
     combos.value = Object.entries(comboMap).map(([k,v]) => ({combo:k,count:v})).sort((a,b)=>b.count-a.count)
     totalStudents.value = students.value.length
     totalWithElectives.value = filtered.length
-    hotCombos.value = combos.value.slice(0, 8)
+    // stats updated
   } catch {}
 }
 
@@ -162,17 +148,4 @@ async function saveOne(row: any) {
   } catch (e: any) { ElMessage.error(e.message) }
 }
 
-async function batchSet() {
-  if (!selected.value.length || !batchElective.value) return
-  try {
-    await ElMessageBox.confirm(
-      `将 ${selected.value.length} 名学生的选科设为 "${batchElective.value}"？`, '批量设置', { type: 'warning' })
-    await api.put('/students/batch-electives', {
-      student_ids: selected.value.map((s:any)=>s.id), electives: batchElective.value,
-    })
-    ElMessage.success('批量设置完成')
-    selected.value = []; batchElective.value = ''
-    loadStudents()
-  } catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message) }
-}
 </script>
