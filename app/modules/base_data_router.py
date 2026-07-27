@@ -605,15 +605,19 @@ async def export_students(
         class_map = {}
 
     import pandas as pd
+    ELEC_SUBJS = ["政治","历史","地理","物理","化学","生物","技术"]
     df_data = []
     for s in students:
-        df_data.append({
+        elec_list = [x.strip() for x in (s.electives or "").split(",") if x.strip()]
+        row = {
             "学籍号": s.student_no, "姓名": s.name,
             "班级": class_map.get(s.class_id, ""),
             "入学年份": s.enrollment_year or "",
             "选科": s.electives or "",
-            "状态": s.status,
-        })
+        }
+        for subj in ELEC_SUBJS:
+            row[subj] = 1 if subj in elec_list else ""
+        df_data.append(row)
     df = pd.DataFrame(df_data)
     output = BytesIO()
     df.to_excel(output, index=False)
