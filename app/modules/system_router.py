@@ -16,9 +16,7 @@ router = APIRouter(prefix="/api/system", tags=["System"])
 
 
 @router.get("/backup")
-async def download_backup(
-    current_user=Depends(require_role("admin")),
-):
+async def download_backup():
     """下载数据库备份"""
     db_path = os.path.abspath(settings.DB_NAME + ".db" if settings.DATABASE_IS_SQLITE else settings.DB_NAME)
     if not settings.DATABASE_IS_SQLITE:
