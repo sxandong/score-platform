@@ -567,7 +567,6 @@ async def export_students(
     grade_id: int | None = None,
     class_id: int | None = None,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
 ):
     """导出学生信息为Excel"""
     from fastapi.responses import StreamingResponse
