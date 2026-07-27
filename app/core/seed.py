@@ -115,6 +115,10 @@ async def seed_subjects(db: AsyncSession) -> None:
     try:
         await db.execute(text("ALTER TABLE students ADD COLUMN electives VARCHAR(50) DEFAULT ''"))
     except Exception: pass
+    # 添加 enrollment_year 列
+    try:
+        await db.execute(text("ALTER TABLE students ADD COLUMN enrollment_year INTEGER DEFAULT 2026"))
+    except Exception: pass
     # 创建分数线表
     await db.execute(text("""
         CREATE TABLE IF NOT EXISTS score_cutoffs (

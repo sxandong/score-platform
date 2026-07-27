@@ -25,6 +25,7 @@
       <el-table-column prop="student_no" label="学籍号" width="130" />
       <el-table-column prop="name" label="姓名" width="100" />
       <el-table-column prop="class_name" label="班级" width="120" />
+      <el-table-column prop="enrollment_year" label="入学年份" width="90" />
       <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }"><el-tag :type="row.status==='enrolled'?'success':'info'">{{ row.status }}</el-tag></template>
       </el-table-column>
@@ -55,6 +56,9 @@
         <el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item>
         <el-form-item label="班级">
           <el-select v-model="form.class_id"><el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" /></el-select>
+        </el-form-item>
+        <el-form-item label="入学年份">
+          <el-input-number v-model="form.enrollment_year" :min="2018" :max="2030" style="width:140px" />
         </el-form-item>
         <el-form-item label="7选3选科">
           <el-checkbox-group v-model="form.electives">
@@ -120,7 +124,7 @@ const selected = ref<any[]>([])
 
 const ELEC_SUBJS = ['政治','历史','地理','物理','化学','生物','技术']
 const dialog = ref(false); const editing = ref<any>(null)
-const form = reactive({ student_no: '', name: '', class_id: 1, electives: [] as string[] })
+const form = reactive({ student_no: '', name: '', class_id: 1, electives: [] as string[], enrollment_year: 2026 })
 
 // ---- 数据加载 ----
 async function loadClasses() {
@@ -144,12 +148,14 @@ function openDialog(row?: any) {
   form.student_no = row?.student_no || ''; form.name = row?.name || ''
   form.class_id = row?.class_id || 1
   form.electives = (row?.electives || '').split(',').filter(Boolean)
+  form.enrollment_year = row?.enrollment_year || 2026
   dialog.value = true
 }
 async function saveStudent() {
   const payload: any = {
     student_no: form.student_no, name: form.name,
     class_id: form.class_id, electives: form.electives.join(','),
+    enrollment_year: form.enrollment_year,
   }
   try {
     editing.value

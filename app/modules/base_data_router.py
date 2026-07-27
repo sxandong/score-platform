@@ -56,6 +56,7 @@ class StudentUpdate(BaseModel):
     class_id: int | None = None
     status: str | None = None
     electives: str | None = None
+    enrollment_year: int | None = None
 
 # ======================= 年级 =======================
 
@@ -329,6 +330,7 @@ async def list_students(
         "class_id": s.class_id, "class_name": class_map.get(s.class_id, ""),
         "status": s.status, "user_id": s.user_id,
         "electives": s.electives or "",
+        "enrollment_year": s.enrollment_year or 2026,
     } for s in students], total=total, page=page, per_page=per_page)
 
 @router.post("/students")
@@ -377,6 +379,7 @@ async def update_student(
     if req.class_id is not None: s.class_id = req.class_id
     if req.status is not None: s.status = req.status
     if req.electives is not None: s.electives = req.electives
+    if req.enrollment_year is not None: s.enrollment_year = req.enrollment_year
     await db.flush()
     return success_response(data={"id": s.id, "name": s.name}, message="学生更新成功")
 
