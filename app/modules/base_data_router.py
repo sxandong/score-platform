@@ -467,12 +467,15 @@ async def batch_import_students(
             errors.append({"row": idx + 2, "reason": f"班级'{cls_str}'不存在"})
             skipped += 1; continue
 
-        # 解析7选3选科
+        # 解析7选3选科 — 必须恰好3门
         selected = []
         for subj in ELEC_SUBJS:
             val = row.get(subj)
             if val is not None and int(val) == 1:
                 selected.append(subj)
+        if len(selected) != 3:
+            errors.append({"row": idx + 2, "reason": f"选科数量={len(selected)}, 必须恰好3门"})
+            skipped += 1; continue
         electives_str = ','.join(selected)
 
         # 已存在则更新，不存在则新增
