@@ -25,8 +25,9 @@
             <el-table-column label="选科" min-width="150">
               <template #default="{row}">
                 <template v-if="row._editing">
-                  <el-checkbox-group v-model="row._elec" size="small">
-                    <el-checkbox v-for="e in ELEC_SUBJS" :key="e" :label="e" :value="e" style="margin-right:4px">{{ e }}</el-checkbox>
+                  <el-checkbox-group v-model="row._elec" size="small" :max="3">
+                    <el-checkbox v-for="e in ELEC_SUBJS" :key="e" :label="e" :value="e"
+                      :disabled="row._elec.length>=3 && !row._elec.includes(e)" style="margin-right:4px">{{ e }}</el-checkbox>
                   </el-checkbox-group>
                 </template>
                 <template v-else>
@@ -141,6 +142,7 @@ function editOne(row: any) {
 }
 
 async function saveOne(row: any) {
+  if (row._elec.length !== 3) { ElMessage.warning('选科必须恰好3门'); return }
   const el = row._elec.join(',')
   try {
     await api.put('/students/batch-electives', { student_ids: [row.id], electives: el })

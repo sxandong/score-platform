@@ -67,8 +67,9 @@
           <el-input-number v-model="form.enrollment_year" :min="2018" :max="2030" style="width:140px" />
         </el-form-item>
         <el-form-item label="7选3选科">
-          <el-checkbox-group v-model="form.electives">
-            <el-checkbox v-for="e in ELEC_SUBJS" :key="e" :label="e" :value="e" style="margin-right:8px">{{ e }}</el-checkbox>
+          <el-checkbox-group v-model="form.electives" :max="3">
+            <el-checkbox v-for="e in ELEC_SUBJS" :key="e" :label="e" :value="e"
+              :disabled="form.electives.length>=3 && !form.electives.includes(e)" style="margin-right:8px">{{ e }}</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
       </el-form>
