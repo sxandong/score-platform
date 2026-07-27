@@ -6,7 +6,7 @@
         <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" />
       </el-select></el-col>
       <el-col :span="3"><el-select v-model="filterClassId" placeholder="按班级" clearable @change="loadStudents">
-        <el-option v-for="c in filteredClasses" :key="c.id" :label="c.name" :value="c.id" />
+        <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
       </el-select></el-col>
       <el-col :span="3"><el-input v-model="keyword" placeholder="搜索" clearable @input="loadStudents" /></el-col>
       <el-col :span="3"><el-button type="primary" @click="openDialog()">新增学生</el-button></el-col>
@@ -117,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import api from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -127,10 +127,6 @@ const filterClassId = ref<number | null>(null); const keyword = ref('')
 const filterYear = ref<number | null>(null)
 const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
 const selected = ref<any[]>([])
-const filteredClasses = computed(() => {
-  if (!filterYear.value) return classes.value
-  return classes.value.filter((c: any) => c.name.includes(String(filterYear.value).slice(2)))
-})
 
 function onYearChange() {
   filterClassId.value = null
