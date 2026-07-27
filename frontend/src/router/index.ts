@@ -46,6 +46,12 @@ const router = createRouter({
           meta: { title: '选科管理', roles: ['admin'] },
         },
         {
+          path: 'data-backup',
+          name: 'data-backup',
+          component: () => import('@/views/system/DataBackup.vue'),
+          meta: { title: '数据备份', roles: ['admin'] },
+        },
+        {
           path: 'exams',
           name: 'exams',
           component: () => import('@/views/system/ExamManage.vue'),

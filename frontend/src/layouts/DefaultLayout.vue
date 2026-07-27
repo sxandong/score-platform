@@ -22,6 +22,9 @@
         <el-menu-item v-if="auth.hasRole('admin')" index="/electives">
           <el-icon><Collection /></el-icon><span>选科管理</span>
         </el-menu-item>
+        <el-menu-item v-if="auth.hasRole('admin')" index="/data-backup">
+          <el-icon><FolderOpened /></el-icon><span>数据备份</span>
+        </el-menu-item>
         <el-menu-item v-if="auth.hasPermission('exam:read')" index="/exams">
           <el-icon><Document /></el-icon><span>考试管理</span>
         </el-menu-item>
