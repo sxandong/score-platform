@@ -86,6 +86,7 @@ const filterClassId = ref<number | null>(null)
 const students = ref<any[]>([]); const loading = ref(false)
 const page = ref(1); const total = ref(0)
 const combos = ref<any[]>([]); const totalStudents = ref(0); const totalWithElectives = ref(0)
+const allStudents = ref<any[]>([])
 
 onMounted(async () => {
   try { const r = await api.get('/classes'); classes.value = r.data } catch {}
@@ -96,41 +97,32 @@ function onYearChange() { filterClassId.value = null; loadStudents() }
 async function loadStudents() {
   loading.value = true
   try {
-    const params: any = { page: page.value, per_page: 500 }
+    const params: any = { page: page.value, per_page: 100 }
     if (filterClassId.value) params.class_id = filterClassId.value
     if (filterYear.value) params.enrollment_year = filterYear.value
     const r = await api.get('/students', { params })
-    students.value = (r.data || []).map((s:any) => ({ ...s, _editing: false, _elec: [] }))
-    total.value = r.meta?.total || students.value.length
+    const allData = (r.data || []).map((s:any) => ({ ...s, _editing: false, _elec: [] }))
+    allStudents.value = allData
+    const start = (page.value - 1) * 100
+    students.value = allData.slice(start, start + 100)
+    total.value = allData.length
     await loadStats()
   } catch {} finally { loading.value = false }
 }
 
 async function loadStats() {
-  // 按筛选条件获取统计
-  const params: any = {}
-  if (filterClassId.value) params.class_id = filterClassId.value
-  // backend doesn't support class_id for elective stats, use enrollment_year or grade
-  if (filterYear.value) {
-    // Get grade from class
-  }
-  try {
-    const sr = await api.get('/elective-stats', { params: {} })
-    // Client-side filter by displayed students
-    const SUBJ_ORDER = ['物理','化学','生物','政治','历史','地理','技术']
-    const filtered = students.value.filter((s:any) => s.electives)
-    const comboMap: Record<string, number> = {}
-    filtered.forEach((s:any) => {
-      const parts = (s.electives||'').split(',').filter(Boolean)
-      parts.sort((a,b) => SUBJ_ORDER.indexOf(a) - SUBJ_ORDER.indexOf(b))
-      const key = parts.join(',')
-      if (key) comboMap[key] = (comboMap[key]||0) + 1
-    })
-    combos.value = Object.entries(comboMap).map(([k,v]) => ({combo:k,count:v})).sort((a,b)=>b.count-a.count)
-    totalStudents.value = students.value.length
-    totalWithElectives.value = filtered.length
-    // stats updated
-  } catch {}
+  const SUBJ_ORDER = ['物理','化学','生物','政治','历史','地理','技术']
+  const filtered = allStudents.value.filter((s:any) => s.electives)
+  const comboMap: Record<string, number> = {}
+  filtered.forEach((s:any) => {
+    const parts = (s.electives||'').split(',').filter(Boolean)
+    parts.sort((a:any,b:any) => SUBJ_ORDER.indexOf(a) - SUBJ_ORDER.indexOf(b))
+    const key = parts.join(',')
+    if (key) comboMap[key] = (comboMap[key]||0) + 1
+  })
+  combos.value = Object.entries(comboMap).map(([k,v]) => ({combo:k,count:v})).sort((a,b)=>b.count-a.count)
+  totalStudents.value = allStudents.value.length
+  totalWithElectives.value = filtered.length
 }
 
 function editOne(row: any) {
