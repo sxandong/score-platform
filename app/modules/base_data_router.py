@@ -297,7 +297,7 @@ async def list_students(
     keyword: str | None = None,
     enrollment_year: int | None = None,
     page: int = Query(1, ge=1),
-    per_page: int = Query(50, ge=1, le=500),
+    per_page: int = Query(50, ge=1, le=5000),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
