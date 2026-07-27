@@ -1,26 +1,28 @@
 <template>
   <div>
     <h3>学生管理</h3>
-    <el-row :gutter="8" style="margin-bottom:16px">
+    <!-- 筛选行 -->
+    <el-row :gutter="8" style="margin-bottom:12px">
       <el-col :span="2"><el-select v-model="filterYear" placeholder="入学年份" clearable @change="onYearChange" style="width:110px">
-        <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" />
-      </el-select></el-col>
+        <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" /></el-select></el-col>
       <el-col :span="3"><el-select v-model="filterClassId" placeholder="按班级" clearable @change="loadStudents">
-        <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" />
-      </el-select></el-col>
-      <el-col :span="3"><el-input v-model="keyword" placeholder="搜索" clearable @input="loadStudents" /></el-col>
-      <el-col :span="3"><el-button type="primary" @click="openDialog()">新增学生</el-button></el-col>
-      <el-col :span="2"><el-button @click="exportStudents">导出Excel</el-button></el-col>
-      <el-col :span="3">
+        <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" /></el-select></el-col>
+      <el-col :span="3"><el-input v-model="keyword" placeholder="搜索学籍号/姓名" clearable @input="loadStudents" /></el-col>
+    </el-row>
+    <!-- 操作行 -->
+    <el-row :gutter="8" style="margin-bottom:12px">
+      <el-col :span="2"><el-button type="primary" @click="openDialog()">新增学生</el-button></el-col>
+      <el-col :span="2">
         <el-upload :show-file-list="false" :before-upload="handleImport" accept=".xlsx,.xls">
           <el-button type="success">Excel导入</el-button>
         </el-upload>
       </el-col>
-      <el-col :span="3"><el-button type="danger" :disabled="!selected.length" @click="batchDelete">
+      <el-col :span="2"><el-button type="warning" plain @click="exportStudents">导出Excel</el-button></el-col>
+      <el-col :span="2"><el-button type="danger" plain :disabled="!selected.length" @click="batchDelete">
         批量删除 ({{ selected.length }})
       </el-button></el-col>
-      <el-col :span="3"><el-button type="warning" @click="showPromote=true">升年级</el-button></el-col>
-      <el-col :span="3"><el-button type="info" @click="showReassign=true">重新分班</el-button></el-col>
+      <el-col :span="2"><el-button type="warning" @click="showPromote=true">升年级</el-button></el-col>
+      <el-col :span="2"><el-button type="primary" plain @click="showReassign=true">重新分班</el-button></el-col>
     </el-row>
 
     <el-table :data="students" border stripe v-loading="loading" @selection-change="(v:any)=>selected=v">
