@@ -486,10 +486,13 @@ async def batch_import_students(
             skipped += 1; continue
         electives_str = ','.join(selected)
 
-        # 读取入学年份
-        enroll_year = int(row.get("入学年份", row.get("enrollment_year", 2026))) if pd.notna(row.get("入学年份", row.get("enrollment_year", 2026))) else 2026
-        # Excel是否包含选科列
-        has_elective_cols = any(row.get(s) is not None for s in ELEC_SUBJS)
+        # 判断Excel中是否包含特定列
+        has_enroll_col = "入学年份" in columns or "enrollment_year" in columns
+        has_elective_cols = any(s in columns for s in ELEC_SUBJS)
+        enroll_year = 2026
+        if has_enroll_col:
+            val = row.get("入学年份", row.get("enrollment_year"))
+            enroll_year = int(val) if pd.notna(val) else 2026
 
         # 已存在则更新，不存在则新增
         result = await db.execute(select(Student).where(Student.student_no == sno))
@@ -497,13 +500,12 @@ async def batch_import_students(
         if existing:
             existing.name = name
             existing.class_id = cid
-            # 仅在Excel明确提供了选科列时才更新选科
             if has_elective_cols:
                 if len(selected) != 3:
                     errors.append({"row": idx + 2, "reason": f"选科数量={len(selected)}, 必须恰好3门"})
                     skipped += 1; continue
                 existing.electives = electives_str
-            if pd.notna(row.get("入学年份", row.get("enrollment_year", float('nan')))):
+            if has_enroll_col:
                 existing.enrollment_year = enroll_year
             updated += 1
         else:
@@ -512,7 +514,7 @@ async def batch_import_students(
                 skipped += 1; continue
             db.add(Student(student_no=sno, name=name, class_id=cid,
                           electives=electives_str if has_elective_cols else "",
-                          enrollment_year=enroll_year))
+                          enrollment_year=enroll_year if has_enroll_col else 2026))
             created += 1
 
     await db.flush()
