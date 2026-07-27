@@ -1,43 +1,55 @@
 # 成绩管理与分析平台
 
-高中成绩管理与分析平台，支持多角色（管理员/教学主管/教师/学生/家长）的成绩录入、查询、排名、统计分析和可视化。
+普通高中教学质量分析系统，支持多角色（管理员/教学主管/教师/学生/家长）的成绩录入、查询、排名、统计分析和可视化。
 
 ## 技术栈
 
-- **后端:** FastAPI + SQLAlchemy 2.0 (async) + Celery + MySQL + Redis
-- **前端:** Vue 3 + Element Plus + ECharts + Pinia + TypeScript
-- **部署:** Docker Compose + Nginx
+- **后端**: FastAPI + SQLAlchemy 2.0 (async) + Celery + MySQL/SQLite + Redis
+- **前端**: Vue 3 + Element Plus + ECharts + Pinia + TypeScript
+- **部署**: Docker Compose + Nginx
 
-## 功能概览
-
-| 模块 | 功能 |
-|------|------|
-| 认证鉴权 | JWT 登录/刷新, RBAC 5角色14权限 |
-| 用户管理 | CRUD + 角色分配 |
-| 考试管理 | 创建/编辑/锁定考试, 科目配置 |
-| 成绩录入 | 单条录入 + Excel批量导入 + 校验 |
-| 成绩查询 | 班级成绩单, 学生成绩, 多维度筛选 |
-| 排名计算 | Celery异步任务, 总分/单科排名 |
-| 统计分析 | 班级横向对比, 学生纵向趋势, 年级总览 |
-| 报表导出 | Excel成绩单导出 |
-
-## 快速启动
+## 快速启动 (Docker)
 
 ```bash
+# 1. 克隆项目
+git clone https://github.com/your-username/score-platform.git
+cd score-platform
+
+# 2. 配置环境变量
+cp .env.example .env
+
+# 3. 启动所有服务
 docker compose up -d
-# 访问 http://localhost
+
+# 4. 访问
+#   前端: http://localhost
+#   API文档: http://localhost:8000/api/docs
 # 默认管理员: admin / admin123
 ```
 
-## 项目结构
+## 本地开发
 
+```bash
+# 后端
+pip install -r requirements.txt
+cp .env.example .env
+python init_db.py
+uvicorn app.main:app --reload --port 8000
+
+# 前端 (新终端)
+cd frontend
+npm install
+npm run dev
+# 访问 http://localhost:5173
 ```
-score-platform/
-├── app/
-│   ├── core/           # 基础设施 (DB, JWT, Celery)
-│   ├── models/         # 15个SQLAlchemy模型
-│   └── modules/        # 业务模块 (auth/users/exams/scores/analysis/reports)
-├── frontend/           # Vue3前端
-├── tests/              # 测试
-└── docker-compose.yml  # 编排配置
-```
+
+## 功能概览
+
+- 用户管理 (RBAC 5角色14权限)
+- 年级/班级/学生管理
+- 考试管理 + 成绩录入/导入
+- 排名计算 (总分/语数外/7选3)
+- 成绩查询 (按班级/学生/年级)
+- 统计分析 (班级统计/班级对比/分数段/趋势图)
+- 分数线设置
+- 报表导出 (Excel/HTML)

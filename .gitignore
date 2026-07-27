@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+admission_data.db*
+*.db-shm
+*.db-wal
+dist/
+node_modules/
+.DS_Store
+uploads/
+*.xlsx
+*.xls
+!学生选科情况.xlsx
