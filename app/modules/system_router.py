@@ -18,7 +18,9 @@ router = APIRouter(prefix="/api/system", tags=["System"])
 @router.get("/backup")
 async def download_backup():
     """下载数据库备份"""
-    db_path = os.path.abspath(settings.DB_NAME + ".db" if settings.DATABASE_IS_SQLITE else settings.DB_NAME)
+    # 从 DATABASE_URL 提取实际文件名, e.g. sqlite+aiosqlite:///admission_data.db
+    db_name = settings.DATABASE_URL.split("///")[-1] if "///" in settings.DATABASE_URL else "admission_data.db"
+    db_path = os.path.abspath(db_name)
     if not settings.DATABASE_IS_SQLITE:
         # For MySQL, we should use mysqldump but for simplicity return a message
         return success_response(message="MySQL backup requires server-side tools")
@@ -50,7 +52,8 @@ async def upload_restore(
     if len(content) < 1024:
         return success_response(message="Invalid backup file (too small)")
 
-    db_path = os.path.abspath(settings.DB_NAME + ".db")
+    db_name = settings.DATABASE_URL.split("///")[-1] if "///" in settings.DATABASE_URL else "admission_data.db"
+    db_path = os.path.abspath(db_name)
     backup_path = db_path + ".before_restore"
     try:
         # Keep a safety backup
