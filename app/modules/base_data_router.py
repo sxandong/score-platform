@@ -562,6 +562,51 @@ async def elective_stats(
     })
 
 
+@router.get("/students/export")
+async def export_students(
+    grade_id: int | None = None,
+    class_id: int | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    """导出学生信息为Excel"""
+    from fastapi.responses import StreamingResponse
+    q = select(Student)
+    if class_id:
+        q = q.where(Student.class_id == class_id)
+    elif grade_id:
+        q = q.where(Student.class_id.in_(select(Class.id).where(Class.grade_id == grade_id)))
+    q = q.order_by(Student.class_id, Student.student_no)
+    result = await db.execute(q)
+    students = list(result.scalars().all())
+
+    # 班级映射
+    if students:
+        cids = {s.class_id for s in students}
+        result = await db.execute(select(Class).where(Class.id.in_(cids)))
+        class_map = {c.id: c.name for c in result.scalars().all()}
+    else:
+        class_map = {}
+
+    import pandas as pd
+    df_data = []
+    for s in students:
+        df_data.append({
+            "学籍号": s.student_no, "姓名": s.name,
+            "班级": class_map.get(s.class_id, ""),
+            "入学年份": s.enrollment_year or "",
+            "选科": s.electives or "",
+            "状态": s.status,
+        })
+    df = pd.DataFrame(df_data)
+    output = BytesIO()
+    df.to_excel(output, index=False)
+    output.seek(0)
+    return StreamingResponse(output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=student_export.xlsx"})
+
+
 class BatchElectiveUpdate(BaseModel):
     student_ids: list[int]
     electives: str = ""

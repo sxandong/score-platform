@@ -7,6 +7,7 @@
       </el-select></el-col>
       <el-col :span="3"><el-input v-model="keyword" placeholder="搜索" clearable @input="loadStudents" /></el-col>
       <el-col :span="3"><el-button type="primary" @click="openDialog()">新增学生</el-button></el-col>
+      <el-col :span="2"><el-button @click="exportStudents">导出Excel</el-button></el-col>
       <el-col :span="3">
         <el-upload :show-file-list="false" :before-upload="handleImport" accept=".xlsx,.xls">
           <el-button type="success">Excel导入</el-button>
@@ -168,6 +169,13 @@ async function deleteStudent(id: number) {
   try { await api.delete(`/students/${id}`); ElMessage.success('已删除'); loadStudents() }
   catch (e: any) { ElMessage.error(e.message) }
 }
+function exportStudents() {
+  let url = '/api/students/export'
+  if (filterClassId.value) url += '?class_id=' + filterClassId.value
+  window.open(url)
+  ElMessage.success('开始下载')
+}
+
 async function handleImport(file: File) {
   const fd = new FormData(); fd.append('file', file)
   try {
