@@ -49,6 +49,8 @@ class StudentCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
     class_id: int
     user_id: int | None = None
+    electives: str = ""  # 3门选科,逗号分隔
+    enrollment_year: int = 2026
 
 class StudentUpdate(BaseModel):
     student_no: str | None = None
@@ -343,8 +345,14 @@ async def create_student(
 ):
     result = await db.execute(select(Student).where(Student.student_no == req.student_no))
     if result.scalar_one_or_none(): raise ValidationException("学籍号已存在")
+    # 验证选科恰好3门
+    if req.electives:
+        parts = [x.strip() for x in req.electives.split(",") if x.strip()]
+        if len(parts) != 3:
+            raise ValidationException(f"选科必须恰好3门, 当前{len(parts)}门")
     s = Student(student_no=req.student_no, name=req.name,
-                class_id=req.class_id, user_id=req.user_id)
+                class_id=req.class_id, user_id=req.user_id,
+                electives=req.electives, enrollment_year=req.enrollment_year)
     db.add(s); await db.flush()
     return success_response(data={"id": s.id, "name": s.name}, message="学生创建成功")
 
