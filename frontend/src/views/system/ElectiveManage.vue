@@ -97,7 +97,7 @@ function onYearChange() { filterClassId.value = null; loadStudents() }
 async function loadStudents() {
   loading.value = true
   try {
-    const params: any = { page: page.value, per_page: 100 }
+    const params: any = { page: 1, per_page: 5000 }  // 一次加载全部，前端分页
     if (filterClassId.value) params.class_id = filterClassId.value
     if (filterYear.value) params.enrollment_year = filterYear.value
     const r = await api.get('/students', { params })
