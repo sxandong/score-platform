@@ -131,10 +131,12 @@ async function loadStats() {
   try {
     const sr = await api.get('/elective-stats', { params: {} })
     // Client-side filter by displayed students
+    const SUBJ_ORDER = ['物理','化学','生物','政治','历史','地理','技术']
     const filtered = students.value.filter((s:any) => s.electives)
     const comboMap: Record<string, number> = {}
     filtered.forEach((s:any) => {
-      const parts = (s.electives||'').split(',').filter(Boolean).sort()
+      const parts = (s.electives||'').split(',').filter(Boolean)
+      parts.sort((a,b) => SUBJ_ORDER.indexOf(a) - SUBJ_ORDER.indexOf(b))
       const key = parts.join(',')
       if (key) comboMap[key] = (comboMap[key]||0) + 1
     })
