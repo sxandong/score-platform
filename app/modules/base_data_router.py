@@ -501,12 +501,13 @@ async def batch_import_students(
         if existing:
             existing.name = name
             existing.class_id = cid
-            # 选科仅在Excel提供时更新,入学年份永不覆盖
             if has_elective_cols:
                 if len(selected) != 3:
                     errors.append({"row": idx + 2, "reason": f"选科数量={len(selected)}, 必须恰好3门"})
                     skipped += 1; continue
                 existing.electives = electives_str
+            if has_enroll_col:
+                existing.enrollment_year = enroll_year
             updated += 1
         else:
             if has_elective_cols and len(selected) != 3:
