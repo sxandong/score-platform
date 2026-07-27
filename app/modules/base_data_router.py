@@ -487,8 +487,9 @@ async def batch_import_students(
         electives_str = ','.join(selected)
 
         # 判断Excel中是否包含特定列
-        has_enroll_col = "入学年份" in columns or "enrollment_year" in columns
-        has_elective_cols = any(s in columns for s in ELEC_SUBJS)
+        cols_set = set(df.columns)
+        has_enroll_col = "入学年份" in cols_set or "enrollment_year" in cols_set
+        has_elective_cols = any(s in cols_set for s in ELEC_SUBJS)
         enroll_year = 2026
         if has_enroll_col:
             val = row.get("入学年份", row.get("enrollment_year"))
