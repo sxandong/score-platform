@@ -274,5 +274,5 @@ async function batchDeleteClasses() {
   } catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message) }
 }
 
-onMounted(() => { loadGrades(); loadClasses() })
+onMounted(async () => { await loadGrades(); loadClasses() })
 </script>
