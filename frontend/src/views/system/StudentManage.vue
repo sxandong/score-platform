@@ -184,8 +184,10 @@ async function deleteStudent(id: number) {
   catch (e: any) { ElMessage.error(e.message) }
 }
 function exportStudents() {
-  let url = '/api/students/export'
-  if (filterClassId.value) url += '?class_id=' + filterClassId.value
+  const params = []
+  if (filterClassId.value) params.push('class_id=' + filterClassId.value)
+  if (filterYear.value) params.push('enrollment_year=' + filterYear.value)
+  const url = '/api/students/export' + (params.length ? '?' + params.join('&') : '')
   window.open(url)
   ElMessage.success('开始下载')
 }

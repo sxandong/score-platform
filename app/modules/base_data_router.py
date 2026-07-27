@@ -595,17 +595,17 @@ async def elective_stats(
 
 @router.get("/students/export")
 async def export_students(
-    grade_id: int | None = None,
     class_id: int | None = None,
+    enrollment_year: int | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    """导出学生信息为Excel"""
+    """导出学生信息为Excel(支持按班级/入学年份筛选)"""
     from fastapi.responses import StreamingResponse
     q = select(Student)
     if class_id:
         q = q.where(Student.class_id == class_id)
-    elif grade_id:
-        q = q.where(Student.class_id.in_(select(Class.id).where(Class.grade_id == grade_id)))
+    if enrollment_year:
+        q = q.where(Student.enrollment_year == enrollment_year)
     q = q.order_by(Student.class_id, Student.student_no)
     result = await db.execute(q)
     students = list(result.scalars().all())
