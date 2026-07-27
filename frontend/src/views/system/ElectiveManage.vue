@@ -8,6 +8,8 @@
         <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" /></el-select></el-col>
       <el-col :span="3"><el-select v-model="filterClassId" placeholder="按班级" clearable @change="loadStudents" style="width:180px">
         <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" /></el-select></el-col>
+      <el-col :span="4"><el-select v-model="filterCombo" placeholder="选科组合(最多3门)" multiple :multiple-limit="3" clearable @change="loadStudents" style="width:320px">
+        <el-option v-for="e in ELEC_SUBJS" :key="e" :label="e" :value="e" /></el-select></el-col>
     </el-row>
 
     <el-row :gutter="16">
@@ -83,6 +85,7 @@ const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
 const classes = ref([])
 const filterYear = ref<number | null>(null)
 const filterClassId = ref<number | null>(null)
+const filterCombo = ref<string[]>([])
 const students = ref<any[]>([]); const loading = ref(false)
 const page = ref(1); const total = ref(0)
 const combos = ref<any[]>([]); const totalStudents = ref(0); const totalWithElectives = ref(0)
@@ -101,7 +104,14 @@ async function loadStudents() {
     if (filterClassId.value) params.class_id = filterClassId.value
     if (filterYear.value) params.enrollment_year = filterYear.value
     const r = await api.get('/students', { params })
-    const allData = (r.data || []).map((s:any) => ({ ...s, _editing: false, _elec: [] }))
+    let allData = (r.data || []).map((s:any) => ({ ...s, _editing: false, _elec: [] }))
+    // 选科组合筛选
+    if (filterCombo.value.length) {
+      allData = allData.filter((s:any) => {
+        const elecs = (s.electives||'').split(',').filter(Boolean)
+        return filterCombo.value.every((c:string) => elecs.includes(c))
+      })
+    }
     allStudents.value = allData
     const start = (page.value - 1) * 100
     students.value = allData.slice(start, start + 100)
