@@ -19,6 +19,9 @@
         <el-menu-item v-if="auth.hasRole('admin')" index="/students">
           <el-icon><Avatar /></el-icon><span>学生管理</span>
         </el-menu-item>
+        <el-menu-item v-if="auth.hasRole('admin')" index="/electives">
+          <el-icon><Collection /></el-icon><span>选科管理</span>
+        </el-menu-item>
         <el-menu-item v-if="auth.hasPermission('exam:read')" index="/exams">
           <el-icon><Document /></el-icon><span>考试管理</span>
         </el-menu-item>

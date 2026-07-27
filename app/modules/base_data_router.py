@@ -509,6 +509,61 @@ async def promote_students(
     return success_response(data={"migrated": migrated}, message=f"升年级完成: {migrated}名学生")
 
 
+@router.get("/elective-stats")
+async def elective_stats(
+    grade_id: int | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin", "director", "teacher")),
+):
+    """选科组合统计"""
+    q = select(Student)
+    if grade_id:
+        q = q.join(Class).where(Class.grade_id == grade_id)
+    result = await db.execute(q)
+    students = result.scalars().all()
+
+    combo_counts: dict[str, dict] = {}
+    for s in students:
+        elec = s.electives or ""
+        if not elec: continue
+        # 标准化选科组合
+        parts = sorted([x.strip() for x in elec.split(",") if x.strip()])
+        key = ",".join(parts)
+        if key not in combo_counts:
+            combo_counts[key] = {"combo": key, "count": 0}
+        combo_counts[key]["count"] += 1
+
+    return success_response(data={
+        "total": len(students),
+        "with_electives": sum(v["count"] for v in combo_counts.values()),
+        "combos": sorted(combo_counts.values(), key=lambda x: -x["count"]),
+    })
+
+
+class BatchElectiveUpdate(BaseModel):
+    student_ids: list[int]
+    electives: str = ""
+
+@router.put("/students/batch-electives")
+async def batch_update_electives(
+    req: BatchElectiveUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    """批量更新学生选科"""
+    ids = req.student_ids
+    electives_str = req.electives
+    if not ids:
+        raise ValidationException("请选择学生")
+    from sqlalchemy import text
+    ids_str = ','.join(str(i) for i in ids)
+    await db.execute(
+        text(f"UPDATE students SET electives = :el WHERE id IN ({ids_str})"),
+        {"el": electives_str})
+    await db.commit()
+    return success_response(message=f"已更新{len(ids)}名学生的选科")
+
+
 @router.post("/students/reassign")
 async def reassign_students(
     req: StudentReassign,

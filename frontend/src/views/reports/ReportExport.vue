@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="page-header"><h3>报表导出</h3><p>成绩单Excel导出与PDF学生报告</p></div>
+    <div class="page-header"><h3>报表导出</h3><p>导出班级或单个学生成绩报告</p></div>
 
     <el-card style="margin-bottom:16px">
       <template #header><span style="font-weight:600">导出全班学生成绩报告 (PDF)</span></template>
@@ -11,7 +11,7 @@
         <el-form-item><el-button type="primary" @click="exportClassReport">导出全班报告</el-button></el-form-item>
       </el-form>
       <div style="font-size:12px;color:var(--tx-secondary);margin-top:4px">
-        生成每个学生一页的HTML报告，请用浏览器 Ctrl+P 打印为PDF
+        生成每个学生一页的HTML报告，请用浏览器 Ctrl+P 打印为PDF，并在更多设置中缩放为55%以适应A4纸张。<br />
       </div>
     </el-card>
 

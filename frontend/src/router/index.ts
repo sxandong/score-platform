@@ -40,6 +40,12 @@ const router = createRouter({
           meta: { title: '学生管理', roles: ['admin'] },
         },
         {
+          path: 'electives',
+          name: 'electives',
+          component: () => import('@/views/system/ElectiveManage.vue'),
+          meta: { title: '选科管理', roles: ['admin'] },
+        },
+        {
           path: 'exams',
           name: 'exams',
           component: () => import('@/views/system/ExamManage.vue'),
