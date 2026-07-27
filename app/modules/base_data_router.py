@@ -345,6 +345,25 @@ async def create_student(
     return success_response(data={"id": s.id, "name": s.name}, message="学生创建成功")
 
 @router.put("/students/{student_id}")
+async def batch_update_electives(
+    req: BatchElectiveUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    """批量更新学生选科"""
+    ids = req.student_ids
+    electives_str = req.electives
+    if not ids:
+        raise ValidationException("请选择学生")
+    from sqlalchemy import text
+    ids_str = ','.join(str(i) for i in ids)
+    await db.execute(
+        text(f"UPDATE students SET electives = :el WHERE id IN ({ids_str})"),
+        {"el": electives_str})
+    await db.commit()
+    return success_response(message=f"已更新{len(ids)}名学生的选科")
+
+
 async def update_student(
     student_id: int, req: StudentUpdate,
     db: AsyncSession = Depends(get_db),
@@ -545,25 +564,6 @@ class BatchElectiveUpdate(BaseModel):
     electives: str = ""
 
 @router.put("/students/batch-electives")
-async def batch_update_electives(
-    req: BatchElectiveUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
-):
-    """批量更新学生选科"""
-    ids = req.student_ids
-    electives_str = req.electives
-    if not ids:
-        raise ValidationException("请选择学生")
-    from sqlalchemy import text
-    ids_str = ','.join(str(i) for i in ids)
-    await db.execute(
-        text(f"UPDATE students SET electives = :el WHERE id IN ({ids_str})"),
-        {"el": electives_str})
-    await db.commit()
-    return success_response(message=f"已更新{len(ids)}名学生的选科")
-
-
 @router.post("/students/reassign")
 async def reassign_students(
     req: StudentReassign,
