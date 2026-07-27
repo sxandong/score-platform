@@ -506,8 +506,7 @@ async def batch_import_students(
                     errors.append({"row": idx + 2, "reason": f"选科数量={len(selected)}, 必须恰好3门"})
                     skipped += 1; continue
                 existing.electives = electives_str
-            if has_enroll_col:
-                existing.enrollment_year = enroll_year
+            # 入学年份只在新增大时设置，不覆盖已有值
             updated += 1
         else:
             if has_elective_cols and len(selected) != 3:
