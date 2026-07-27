@@ -616,7 +616,7 @@ async def export_students(
             "选科": s.electives or "",
         }
         for subj in ELEC_SUBJS:
-            row[subj] = 1 if subj in elec_list else ""
+            row[subj] = 1 if subj in elec_list else 0
         df_data.append(row)
     df = pd.DataFrame(df_data)
     output = BytesIO()
