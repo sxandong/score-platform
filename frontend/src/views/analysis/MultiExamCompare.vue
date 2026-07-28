@@ -46,7 +46,7 @@ import api from '@/api'
 const exams = ref([]); const selectedExams = ref<number[]>([])
 const filterYear = ref<number | null>(null)
 const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
-const filteredExams = computed(() => filterYear.value ? exams.value.filter((e:any) => e.enrollment_year == filterYear.value) : exams.value)
+const filteredExams = computed(() => filterYear.value ? exams.value.filter((e:any) => e.enrollment_year == filterYear.value) : [])
 function onYearChange() { selectedExams.value = []; compareData.value = {} }
 const compareData = ref<any>({}); const loading = ref(false)
 const chartMetric = ref('c930')
