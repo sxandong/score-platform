@@ -128,7 +128,7 @@ const students = ref<any[]>([]); const classes = ref<any[]>([]); const grades = 
 const loading = ref(false); const page = ref(1); const total = ref(0)
 const filterClassId = ref<number | null>(null); const keyword = ref('')
 const filterYear = ref<number | null>(null)
-const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
+const yearOptions = Array.from({length:7}, (_,i) => new Date().getFullYear() - 6 + i)
 const selected = ref<any[]>([])
 
 function onYearChange() {

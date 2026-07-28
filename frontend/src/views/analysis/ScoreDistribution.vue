@@ -47,7 +47,7 @@ import api from '@/api'
 
 const exams = ref([]); const examId = ref<number | null>(null); const examName = ref('')
 const filterYear = ref<number | null>(null)
-const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
+const yearOptions = Array.from({length:7}, (_,i) => new Date().getFullYear() - 6 + i)
 const filteredExams = computed(() => filterYear.value ? exams.value.filter((e:any) => e.enrollment_year == filterYear.value) : [])
 function onYearChange() { examId.value = null }
 const loading = ref(false); const thresholds = ref<number[]>([])

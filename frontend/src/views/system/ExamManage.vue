@@ -58,7 +58,7 @@ import { ElMessage } from 'element-plus'
 
 const exams = ref([]); const loading = ref(false); const showDialog = ref(false)
 const editing = ref<any>(null); const grades = ref([])
-const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
+const yearOptions = Array.from({length:7}, (_,i) => new Date().getFullYear() - 6 + i)
 const typeOptions = [
   { value:'monthly',label:'月考'},{ value:'midterm',label:'期中'},{ value:'final',label:'期末'},
   { value:'mock',label:'模拟'},{ value:'other',label:'其他'},

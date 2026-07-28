@@ -81,7 +81,7 @@ import api from '@/api'
 import { ElMessage } from 'element-plus'
 
 const ELEC_SUBJS = ['政治','历史','地理','物理','化学','生物','技术']
-const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
+const yearOptions = Array.from({length:7}, (_,i) => new Date().getFullYear() - 6 + i)
 
 const classes = ref([])
 const filterYear = ref<number | null>(null)
