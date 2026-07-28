@@ -50,7 +50,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import api from '@/api'
 
 const statCards = ref([
@@ -59,14 +60,29 @@ const statCards = ref([
   { label:'班级数量', value:'-', icon:'School', color:'var(--edu-gold)' },
   { label:'用户数量', value:'-', icon:'Avatar', color:'#e04040' },
 ])
-const quickLinks = [
-  { path:'/exams', label:'考试管理', desc:'创建与管理考试', icon:'Document', color:'var(--edu-blue)' },
-  { path:'/scores/entry', label:'成绩录入', desc:'录入各科成绩', icon:'Edit', color:'var(--edu-green)' },
-  { path:'/scores/query', label:'成绩查询', desc:'班级与学生成绩', icon:'Search', color:'var(--edu-gold)' },
-  { path:'/students', label:'学生管理', desc:'学籍与选科', icon:'Avatar', color:'#e04040' },
-  { path:'/analysis/class-compare', label:'班级对比', desc:'横向比较分析', icon:'TrendCharts', color:'#7b61ff' },
-  { path:'/reports', label:'报表导出', desc:'成绩单与报表', icon:'Download', color:'#00897b' },
-]
+const isTeacher = computed(() => {
+  const auth = useAuthStore()
+  return auth.hasRole('teacher') && !auth.hasRole('admin') && !auth.hasRole('director')
+})
+const quickLinks = computed(() => {
+  if (isTeacher.value) {
+    return [
+      { path:'/scores/query', label:'成绩查询', desc:'班级与学生成绩', icon:'Search', color:'var(--edu-gold)' },
+      { path:'/analysis/class-compare', label:'班级统计', desc:'各班达线人数', icon:'DataLine', color:'var(--edu-blue)' },
+      { path:'/analysis/multi-exam-compare', label:'班级对比', desc:'多考试对比', icon:'TrendCharts', color:'#7b61ff' },
+      { path:'/analysis/score-distribution', label:'分数段统计', desc:'各科分数分布', icon:'PieChart', color:'#00897b' },
+      { path:'/analysis/student-trend', label:'成绩趋势', desc:'上线人数趋势', icon:'TrendCharts', color:'var(--edu-green)' },
+    ]
+  }
+  return [
+    { path:'/exams', label:'考试管理', desc:'创建与管理考试', icon:'Document', color:'var(--edu-blue)' },
+    { path:'/scores/entry', label:'成绩录入', desc:'录入各科成绩', icon:'Edit', color:'var(--edu-green)' },
+    { path:'/scores/query', label:'成绩查询', desc:'班级与学生成绩', icon:'Search', color:'var(--edu-gold)' },
+    { path:'/students', label:'学生管理', desc:'学籍与选科', icon:'Avatar', color:'#e04040' },
+    { path:'/analysis/class-compare', label:'班级统计', desc:'各班达线人数', icon:'TrendCharts', color:'#7b61ff' },
+    { path:'/reports', label:'报表导出', desc:'成绩单与报表', icon:'Download', color:'#00897b' },
+  ]
+})
 
 onMounted(async () => {
   try {

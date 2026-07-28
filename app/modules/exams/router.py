@@ -84,7 +84,7 @@ async def get_cutoffs(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role("admin", "director", "teacher")),
 ):
-    """获取已设置的分数线"""
+    """获取分数线(教师只读)"""
     from sqlalchemy import text
 
     result = await db.execute(text(
