@@ -8,10 +8,10 @@
       </el-form-item>
     </el-form>
 
-    <el-card v-if="filterYear && chartReady" v-loading="loading">
+    <el-card v-show="filterYear" v-loading="loading">
       <div id="chart-cutoff-trend" style="width:100%;height:450px"></div>
     </el-card>
-    <el-empty v-else :description="filterYear ? '加载中...' : '请先选择入学年份'" />
+    <el-empty v-if="!filterYear" description="请先选择入学年份" />
   </div>
 </template>
 
@@ -22,17 +22,17 @@ import api from '@/api'
 
 const filterYear = ref<number | null>(null)
 const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
-const loading = ref(false); const chartReady = ref(false)
+const loading = ref(false)
 
 async function loadData() {
   if (!filterYear.value) return
-  loading.value = true; chartReady.value = false
+  loading.value = true
   try {
     const r = await api.get('/analysis/cutoff-trend', { params: { enrollment_year: filterYear.value } })
     const data = r.data || []
     if (!data.length) return
 
-    await nextTick(); await new Promise(r2 => setTimeout(r2, 200))
+    await nextTick()
     const el = document.getElementById('chart-cutoff-trend')
     if (!el) return
 
@@ -53,7 +53,6 @@ async function loadData() {
           label: { show: true, position: 'top', fontSize: 11 } },
       ],
     }, true)
-    chartReady.value = true
   } catch {} finally { loading.value = false }
 }
 </script>
