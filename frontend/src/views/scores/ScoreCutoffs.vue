@@ -31,13 +31,13 @@
         <el-table-column label="优秀线">
           <template #default="{row}">
             <el-input-number v-model="row.excellent" :min="0" :max="150" :precision="1"
-              size="small" style="width:120px" controls-position="right" placeholder="-" />
+              size="small" style="width:120px" controls-position="right" placeholder="-" :disabled="isReadOnly" />
           </template>
         </el-table-column>
         <el-table-column label="良好线">
           <template #default="{row}">
             <el-input-number v-model="row.good" :min="0" :max="150" :precision="1"
-              size="small" style="width:120px" controls-position="right" placeholder="-" />
+              size="small" style="width:120px" controls-position="right" placeholder="-" :disabled="isReadOnly" />
           </template>
         </el-table-column>
       </el-table>
