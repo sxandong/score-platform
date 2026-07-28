@@ -2,26 +2,33 @@
   <div>
     <div class="page-header"><h3>成绩趋势</h3><p>历次考试各分数线上线人数变化趋势</p></div>
 
-    <el-card v-loading="loading">
+    <el-form :inline="true">
+      <el-form-item label="入学年份"><el-select v-model="filterYear" style="width:120px" @change="loadData">
+        <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" /></el-select>
+      </el-form-item>
+    </el-form>
+
+    <el-card v-if="filterYear && chartReady" v-loading="loading">
       <div id="chart-cutoff-trend" style="width:100%;height:450px"></div>
     </el-card>
-    <el-empty v-if="!loading && !chartReady" description="暂无数据" />
+    <el-empty v-else :description="filterYear ? '加载中...' : '请先选择入学年份'" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import api from '@/api'
 
+const filterYear = ref<number | null>(null)
+const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
 const loading = ref(false); const chartReady = ref(false)
 
-onMounted(async () => { await loadData() })
-
 async function loadData() {
-  loading.value = true
+  if (!filterYear.value) return
+  loading.value = true; chartReady.value = false
   try {
-    const r = await api.get('/analysis/cutoff-trend')
+    const r = await api.get('/analysis/cutoff-trend', { params: { enrollment_year: filterYear.value } })
     const data = r.data || []
     if (!data.length) return
 
@@ -30,7 +37,7 @@ async function loadData() {
     if (!el) return
 
     const labels = data.map((d: any) => (d.exam_name||'').substring(0,14))
-    const inst = echarts.init(el)
+    const inst = echarts.getInstanceByDom(el) || echarts.init(el)
     inst.setOption({
       tooltip: { trigger: 'axis' },
       legend: { top: 0 },
@@ -45,7 +52,7 @@ async function loadData() {
         { name: '一段线人数', type: 'line', data: data.map((d: any) => d.first||0), smooth: true,
           label: { show: true, position: 'top', fontSize: 11 } },
       ],
-    })
+    }, true)
     chartReady.value = true
   } catch {} finally { loading.value = false }
 }

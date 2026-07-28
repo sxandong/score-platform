@@ -209,12 +209,18 @@ async def score_distribution(
 
 @router.get("/cutoff-trend")
 async def cutoff_trend(
+    enrollment_year: int | None = None,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role("admin", "director", "teacher")),
 ):
     """历次考试930/特控/一段上线人数趋势"""
     from sqlalchemy import text
-    result = await db.execute(text("SELECT id, name, exam_date FROM exams ORDER BY exam_date"))
+    if enrollment_year:
+        result = await db.execute(text(
+            "SELECT id, name, exam_date FROM exams WHERE enrollment_year=:yr ORDER BY exam_date"
+        ), {"yr": enrollment_year})
+    else:
+        result = await db.execute(text("SELECT id, name, exam_date FROM exams ORDER BY exam_date"))
     exams = [{"id": r[0], "name": r[1], "date": str(r[2]) if r[2] else None} for r in result.fetchall()]
     data = []
     for e in exams:
