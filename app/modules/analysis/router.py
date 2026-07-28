@@ -25,8 +25,10 @@ async def class_cutoff_stats(
     ), {"eid": exam_id})
     cutoffs: dict[str, float] = {row[0]: float(row[1]) for row in result.fetchall()}
 
-    # 获取所有班级
-    result = await db.execute(text("SELECT id, name FROM classes ORDER BY id"))
+    # 获取该考试对应年级的班级
+    result = await db.execute(text(
+        "SELECT id, name FROM classes WHERE grade_id = (SELECT grade_id FROM exams WHERE id=:eid)"
+        " ORDER BY id"), {"eid": exam_id})
     classes = [{"id": row[0], "name": row[1]} for row in result.fetchall()]
 
     # 对每个班级统计各项指标
@@ -113,7 +115,11 @@ async def multi_exam_compare(
         text(f"SELECT id, name FROM exams WHERE id IN ({ids_str}) ORDER BY exam_date"))
     exams = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
 
-    result = await db.execute(text("SELECT id, name FROM classes ORDER BY id"))
+    # 取第一个考试的年级来筛选班级
+    first_eid = ids[0]
+    result = await db.execute(text(
+        "SELECT id, name FROM classes WHERE grade_id = (SELECT grade_id FROM exams WHERE id=:eid)"
+        " ORDER BY id"), {"eid": first_eid})
     classes = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
 
     data: dict = {}
