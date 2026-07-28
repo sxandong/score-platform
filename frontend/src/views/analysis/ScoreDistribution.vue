@@ -103,7 +103,12 @@ function pctClass(v: number): string {
 </script>
 
 <style scoped>
-:deep(.el-table th.el-table__cell) { background: linear-gradient(180deg,#f0f5fa,#e8f0fe); color:var(--edu-blue); font-weight:600; text-align:center; }
+:deep(.el-table) { border-radius:8px; overflow:hidden; }
+:deep(.el-table th.el-table__cell) { background: linear-gradient(180deg,#f0f5fa,#e8f0fe); color:var(--edu-blue); font-weight:600; text-align:center; font-size:12px; }
+:deep(.el-table td) { text-align:center; }
+:deep(.el-table .el-table__row:hover > td) { background:#ecf5ff !important; }
+:deep(.el-table .el-table__row:nth-child(even) > td) { background:#fafcfd; }
+:deep(.el-table .el-table__row:nth-child(odd) > td) { background:#ffffff; }
 .count-high { color:var(--edu-green); font-weight:700; }
 .count-mid { color:var(--edu-gold); font-weight:600; }
 .count-low { color:var(--tx-secondary); }
