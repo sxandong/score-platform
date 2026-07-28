@@ -3,7 +3,7 @@
     <div class="page-header"><h3>成绩录入</h3><p>按班级录入或修改考试成绩</p></div>
 
     <el-form :inline="true">
-      <el-form-item label="考试"><el-select v-model="examId" placeholder="选择考试" @change="loadStudents" style="width:300px">
+      <el-form-item label="考试"><el-select v-model="examId" placeholder="选择考试" @change="onExamChange" style="width:300px">
         <el-option v-for="e in exams" :key="e.id" :label="e.name" :value="e.id" /></el-select>
       </el-form-item>
       <el-form-item label="班级"><el-select v-model="classId" placeholder="选择班级" @change="loadStudents" style="width:200px">
@@ -54,6 +54,20 @@ onMounted(async () => {
   try { const r = await api.get('/classes'); classes.value = r.data } catch {}
 })
 
+async function onExamChange() {
+  classId.value = null; scoreRows.value = []
+  if (!examId.value) { classes.value = []; return }
+  try {
+    const exr = await api.get(`/exams/${examId.value}`)
+    if (exr.data?.grade_id) {
+      const cr = await api.get('/classes', { params: { grade_id: exr.data.grade_id } })
+      classes.value = cr.data || []
+    } else {
+      const cr = await api.get('/classes'); classes.value = cr.data || []
+    }
+  } catch {}
+}
+
 async function loadStudents() {
   if (!examId.value || !classId.value) {
     scoreRows.value = []; examSubjects.value = []; hasExisting.value = false; return
@@ -65,12 +79,8 @@ async function loadStudents() {
       api.get(`/exams/${examId.value}`),
       api.get('/students', { params: { class_id: classId.value, per_page: 100 } }),
     ])
-    examSubjects.value = exr.data?.subjects || []
-    if (exr.data?.grade_id) {
-      const cr = await api.get("/classes", { params: { grade_id: exr.data.grade_id } })
-      classes.value = cr.data || []
-    }
     const students = sr.data || []
+    examSubjects.value = exr.data?.subjects || []
     if (!students.length) { ElMessage.warning('该班级没有学生'); return }
 
     // 尝试加载已有成绩
