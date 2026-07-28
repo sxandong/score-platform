@@ -52,6 +52,7 @@ async def list_exams(
 async def get_exam(db: AsyncSession, exam_id: int) -> Exam:
     result = await db.execute(
         select(Exam).options(
+            selectinload(Exam.grade),
             selectinload(Exam.exam_subjects).selectinload(ExamSubject.subject)
         ).where(Exam.id == exam_id)
     )
