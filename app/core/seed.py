@@ -17,7 +17,7 @@ ROLE_PERMISSION_MAP = {
         "analysis:view", "report:export",
     ],
     "teacher": [
-        "score:read", "analysis:view",
+        "score:read", "analysis:view", "report:export",
     ],
     "student": ["score:read"],
     "parent": ["score:read"],
@@ -118,13 +118,17 @@ async def seed_subjects(db: AsyncSession) -> None:
     try:
         await db.execute(text("ALTER TABLE students ADD COLUMN enrollment_year INTEGER DEFAULT 2026"))
     except Exception: pass
-    # 清理教师多余权限(score:create/update/export, exam:read)
+    # 清理教师多余权限 + 添加 report:export
     await db.execute(text(
         "DELETE FROM role_permissions WHERE role_id=(SELECT id FROM roles WHERE code='teacher')"
         " AND permission_id IN (SELECT id FROM permissions WHERE code LIKE 'score:%' AND code!='score:read')"))
     await db.execute(text(
         "DELETE FROM role_permissions WHERE role_id=(SELECT id FROM roles WHERE code='teacher')"
         " AND permission_id IN (SELECT id FROM permissions WHERE code='exam:read')"))
+    # 确保教师有 report:export
+    await db.execute(text(
+        "INSERT OR IGNORE INTO role_permissions (role_id, permission_id)"
+        " SELECT (SELECT id FROM roles WHERE code='teacher'), (SELECT id FROM permissions WHERE code='report:export')"))
     # 添加 enrollment_year 列到 exams
     try:
         await db.execute(text("ALTER TABLE exams ADD COLUMN enrollment_year INTEGER DEFAULT 2026"))
