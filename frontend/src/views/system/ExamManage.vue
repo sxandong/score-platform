@@ -109,7 +109,8 @@ async function saveExam() {
       })
       ElMessage.success('更新成功')
     } else {
-      await api.post('/exams', { ...form })
+      const payload = { ...form, exam_date: form.exam_date || undefined }
+      await api.post('/exams', payload)
       ElMessage.success('创建成功')
     }
     showDialog.value = false; editing.value = null; loadExams()
