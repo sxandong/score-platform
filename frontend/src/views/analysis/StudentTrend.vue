@@ -8,10 +8,11 @@
       </el-form-item>
     </el-form>
 
-    <el-card v-show="filterYear" v-loading="loading">
+    <el-card v-show="filterYear && !noData" v-loading="loading">
       <div id="chart-cutoff-trend" style="width:100%;height:450px"></div>
     </el-card>
     <el-empty v-if="!filterYear" description="请先选择入学年份" />
+    <el-empty v-if="filterYear && noData" description="该入学年份暂无考试数据" />
   </div>
 </template>
 
@@ -22,15 +23,15 @@ import api from '@/api'
 
 const filterYear = ref<number | null>(null)
 const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
-const loading = ref(false)
+const loading = ref(false); const noData = ref(false)
 
 async function loadData() {
   if (!filterYear.value) return
-  loading.value = true
+  loading.value = true; noData.value = false
   try {
     const r = await api.get('/analysis/cutoff-trend', { params: { enrollment_year: filterYear.value } })
     const data = r.data || []
-    if (!data.length) return
+    if (!data.length) { noData.value = true; return }
 
     await nextTick()
     const el = document.getElementById('chart-cutoff-trend')
