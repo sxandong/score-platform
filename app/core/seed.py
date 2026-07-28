@@ -17,8 +17,7 @@ ROLE_PERMISSION_MAP = {
         "analysis:view", "report:export",
     ],
     "teacher": [
-        "exam:read", "score:create", "score:read", "score:update", "score:export",
-        "analysis:view",
+        "exam:read", "score:read", "analysis:view",
     ],
     "student": ["score:read"],
     "parent": ["score:read"],
@@ -119,6 +118,11 @@ async def seed_subjects(db: AsyncSession) -> None:
     try:
         await db.execute(text("ALTER TABLE students ADD COLUMN enrollment_year INTEGER DEFAULT 2026"))
     except Exception: pass
+    # 清理教师多余权限(score:create,score:update,score:export)
+    await db.execute(text(
+        "DELETE FROM role_permissions WHERE role_id=(SELECT id FROM roles WHERE code='teacher')"
+        " AND permission_id IN (SELECT id FROM permissions WHERE code LIKE 'score:%' AND code!='score:read')"
+    ))
     # 创建分数线表
     await db.execute(text("""
         CREATE TABLE IF NOT EXISTS score_cutoffs (
