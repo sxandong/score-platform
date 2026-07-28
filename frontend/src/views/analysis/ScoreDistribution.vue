@@ -17,7 +17,7 @@
       <div style="overflow-x:auto;margin-bottom:20px">
       <el-table :data="tableData" border stripe size="small" :cell-style="{textAlign:'center'}">
         <el-table-column prop="subject" label="科目" width="90" fixed />
-        <el-table-column v-for="t in thresholds" :key="'n'+t" :label="'≥'+t" width="72">
+        <el-table-column v-for="t in thresholds" :key="'n'+t" :label="'≥'+t" width="86">
           <template #default="{row}">
             <span :class="countClass(row['t_'+t])">{{ row['t_'+t] || 0 }}</span>
           </template>
@@ -29,7 +29,7 @@
       <div style="overflow-x:auto">
       <el-table :data="tableData" border stripe size="small" :cell-style="{textAlign:'center'}">
         <el-table-column prop="subject" label="科目" width="90" fixed />
-        <el-table-column v-for="t in thresholds" :key="'p'+t" :label="'≥'+t" width="72">
+        <el-table-column v-for="t in thresholds" :key="'p'+t" :label="'≥'+t" width="86">
           <template #default="{row}">
             <span :class="pctClass(row['p_'+t])">{{ row['p_'+t]?.toFixed(1) || '-' }}</span>
           </template>

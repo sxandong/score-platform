@@ -44,7 +44,7 @@ async function loadData() {
       legend: { top: 0 },
       grid: { left: 55, right: 20, top: 40, bottom: 25 },
       xAxis: { type: 'category', data: labels },
-      yAxis: { type: 'value', name: '人数', minInterval: 1 },
+      yAxis: { type: 'value', name: '人数', minInterval: 1},
       series: [
         { name: '930线人数', type: 'line', data: data.map((d: any) => d.c930||0), smooth: true,
           label: { show: true, position: 'top', fontSize: 11 } },

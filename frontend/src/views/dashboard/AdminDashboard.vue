@@ -85,16 +85,11 @@ const quickLinks = computed(() => {
 })
 
 onMounted(async () => {
-  try {
-    const [r1,r2,r3,r4] = await Promise.all([
-      api.get('/exams'), api.get('/students',{params:{per_page:1}}),
-      api.get('/classes'), api.get('/users'),
-    ])
-    statCards.value[0].value = r1.meta?.total || 0
-    statCards.value[1].value = r2.meta?.total || 0
-    statCards.value[2].value = r3.data?.length || 0
-    statCards.value[3].value = r4.meta?.total || 0
-  } catch {}
+  // 独立请求，避免一个失败导致全部不显示
+  try { const r = await api.get('/exams'); statCards.value[0].value = r.meta?.total || 0 } catch {}
+  try { const r = await api.get('/students',{params:{per_page:1}}); statCards.value[1].value = r.meta?.total || 0 } catch {}
+  try { const r = await api.get('/classes'); statCards.value[2].value = r.data?.length || 0 } catch {}
+  try { const r = await api.get('/users'); statCards.value[3].value = r.meta?.total || 0 } catch {}
 })
 </script>
 

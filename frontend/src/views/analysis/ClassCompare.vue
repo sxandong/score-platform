@@ -13,7 +13,7 @@
     <el-card v-if="examId && compareData.length" v-loading="loading">
       <div class="scroll-wrap">
       <el-table :data="transposed" border stripe size="small" :cell-style="{textAlign:'center'}">
-        <el-table-column prop="label" label="指标" width="140" />
+        <el-table-column prop="label" label="指标" width="140" fixed/>
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="90">
           <template #default="{row}">
             <span :class="numClass(row[c.id], row.label)">{{ row[c.id] !== undefined ? row[c.id] : '-' }}</span>
@@ -31,8 +31,8 @@
         </span>
       </h4>
       <el-table :data="excellentRows" border stripe size="small" :cell-style="{textAlign:'center'}">
-        <el-table-column prop="label" label="科目" width="80" />
-        <el-table-column prop="total" label="总人数" width="75" />
+        <el-table-column prop="label" label="科目" width="80" fixed/>
+        <el-table-column prop="total" label="总人数" width="75" fixed/>
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="100">
           <template #default="{row}">
             <span :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>
@@ -52,8 +52,8 @@
         </span>
       </h4>
       <el-table :data="goodRows" border stripe size="small" :cell-style="{textAlign:'center'}">
-        <el-table-column prop="label" label="科目" width="80" />
-        <el-table-column prop="total" label="总人数" width="75" />
+        <el-table-column prop="label" label="科目" width="80" fixed/>
+        <el-table-column prop="total" label="总人数" width="75" fixed/>
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="100">
           <template #default="{row}">
             <span :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>

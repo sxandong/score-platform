@@ -51,8 +51,9 @@ async def student_report(
                 used_subjs.add(sn)
     subj_names = [s for s in ALL_SUBJS if s in used_subjs]
 
+    sorted_exams = sorted(exams, key=lambda x: x.get("exam_date","") or "")
     rows_html = ""
-    for e in exams:
+    for e in sorted_exams:
         cells = "".join(f"<td>{e['subjects'].get(sn,'')}</td>" for sn in subj_names)
         yw_r = e.get("yws_rank","") or ""
         t3_r = e.get("top3_rank","") or ""
@@ -66,7 +67,7 @@ async def student_report(
     header_cells = "".join(f"<th>{sn}</th>" for sn in subj_names)
 
     # Chart data
-    sorted_exams = sorted(exams, key=lambda x: x.get("exam_date","") or "")
+
     chart_labels = [(e["exam_name"] or "")[:12] for e in sorted_exams]
 
     # subject rank data and student counts
@@ -258,8 +259,9 @@ async def class_report(
                     used_subjs.add(sn)
         subj_names = [s for s in ALL_SUBJS if s in used_subjs]
 
+        sorted_exams = sorted(exams, key=lambda x: x.get("exam_date","") or "")
         rows_html = ""
-        for e in exams:
+        for e in sorted_exams:
             cells = "".join(f"<td>{e['subjects'].get(sn,'')}</td>" for sn in subj_names)
             yw_r = e.get("yws_rank","") or ""
             t3_r = e.get("top3_rank","") or ""
@@ -273,7 +275,7 @@ async def class_report(
         header_cells = "".join(f"<th>{sn}</th>" for sn in subj_names)
 
         # Chart data for this student
-        sorted_exams = sorted(exams, key=lambda x: x.get("exam_date","") or "")
+
         clabels = [(e["exam_name"] or "")[:12] for e in sorted_exams]
         sranks = {}; scounts = {}
         for e in sorted_exams:
