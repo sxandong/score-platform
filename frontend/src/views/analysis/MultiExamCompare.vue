@@ -3,8 +3,10 @@
     <div class="page-header"><h3>班级对比分析</h3><p>多考试各班达线人数对比</p></div>
 
     <el-form :inline="true">
+      <el-form-item label="入学年份"><el-select v-model="filterYear" style="width:120px" @change="onYearChange">
+        <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" /></el-select></el-form-item>
       <el-form-item label="选择考试"><el-select v-model="selectedExams" multiple placeholder="至少选2次考试" style="width:500px">
-        <el-option v-for="e in exams" :key="e.id" :label="e.name" :value="e.id" /></el-select>
+        <el-option v-for="e in filteredExams" :key="e.id" :label="e.name" :value="e.id" /></el-select>
       </el-form-item>
       <el-form-item><el-button type="primary" @click="loadData" :disabled="selectedExams.length<2">对比分析</el-button></el-form-item>
     </el-form>
@@ -42,6 +44,10 @@ import * as echarts from 'echarts'
 import api from '@/api'
 
 const exams = ref([]); const selectedExams = ref<number[]>([])
+const filterYear = ref<number | null>(null)
+const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
+const filteredExams = computed(() => filterYear.value ? exams.value.filter((e:any) => e.enrollment_year == filterYear.value) : exams.value)
+function onYearChange() { selectedExams.value = []; compareData.value = {} }
 const compareData = ref<any>({}); const loading = ref(false)
 const chartMetric = ref('c930')
 

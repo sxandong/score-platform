@@ -3,8 +3,10 @@
     <div class="page-header"><h3>班级人数统计</h3><p>各班级达线人数分布</p></div>
 
     <el-form :inline="true">
+      <el-form-item label="入学年份"><el-select v-model="filterYear" style="width:120px" @change="onYearChange">
+        <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" /></el-select></el-form-item>
       <el-form-item label="考试"><el-select v-model="examId" placeholder="选择考试" style="width:300px" @change="loadData">
-        <el-option v-for="e in exams" :key="e.id" :label="e.name" :value="e.id" /></el-select>
+        <el-option v-for="e in filteredExams" :key="e.id" :label="e.name" :value="e.id" /></el-select>
       </el-form-item>
     </el-form>
 
@@ -71,6 +73,10 @@ import { ref, computed, onMounted } from 'vue'
 import api from '@/api'
 
 const exams = ref([]); const examId = ref<number | null>(null)
+const filterYear = ref<number | null>(null)
+const yearOptions = [2023,2024,2025,2026,2027,2028,2029,2030]
+const filteredExams = computed(() => filterYear.value ? exams.value.filter((e:any) => e.enrollment_year == filterYear.value) : exams.value)
+function onYearChange() { examId.value = null; compareData.value = []; cutoffs.value = {} }
 const compareData = ref([]); const cutoffs = ref<Record<string,number>>({})
 const subjStats = ref<Record<string, any[]>>({})
 const loading = ref(false)
