@@ -119,9 +119,9 @@ async def save_cutoffs(
     exam_id: int,
     req: CutoffSave,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin", "director", "teacher")),
+    current_user=Depends(require_role("admin", "director")),
 ):
-    """手动设置分数线"""
+    """手动设置分数线(仅管理员/教学主管)"""
     from sqlalchemy import text
     values = req.cutoffs
 

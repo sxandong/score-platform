@@ -19,7 +19,7 @@
         <el-table-column label="分数">
           <template #default="{row}">
             <el-input-number v-model="row.score" :min="0" :max="750" :precision="1"
-              size="small" style="width:160px" controls-position="right" placeholder="输入分数" />
+              size="small" style="width:160px" controls-position="right" placeholder="输入分数" :disabled="isReadOnly" />
           </template>
         </el-table-column>
       </el-table>
@@ -43,17 +43,20 @@
       </el-table>
       </div>
 
-      <el-button type="primary" @click="saveCutoffs" :loading="saving" style="margin-top:20px">保存设置</el-button>
+      <el-button v-if="!isReadOnly" type="primary" @click="saveCutoffs" :loading="saving" style="margin-top:20px">保存设置</el-button>
     </el-card>
     <el-empty v-else description="请选择考试" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import api from '@/api'
 import { ElMessage } from 'element-plus'
 
+const auth = useAuthStore()
+const isReadOnly = computed(() => auth.hasRole('teacher') && !auth.hasRole('admin') && !auth.hasRole('director'))
 const exams = ref([]); const examId = ref<number | null>(null); const examName = ref('')
 const loading = ref(false); const saving = ref(false)
 const examCutoffs = ref<any[]>([])
