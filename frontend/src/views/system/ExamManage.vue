@@ -101,16 +101,18 @@ function openDialog(row?: any) {
 
 async function saveExam() {
   try {
+    const data: any = {
+      name: form.name, exam_type: form.exam_type,
+      semester_id: 1, grade_id: Number(form.grade_id),
+      enrollment_year: Number(form.enrollment_year),
+      exam_date: form.exam_date || undefined,
+      subjects: [],
+    }
     if (editing.value) {
-      await api.put(`/exams/${editing.value.id}`, {
-        name: form.name, exam_type: form.exam_type,
-        grade_id: form.grade_id, enrollment_year: form.enrollment_year,
-        exam_date: form.exam_date || undefined,
-      })
+      await api.put(`/exams/${editing.value.id}`, data)
       ElMessage.success('更新成功')
     } else {
-      const payload = { ...form, exam_date: form.exam_date || undefined }
-      await api.post('/exams', payload)
+      await api.post('/exams', data)
       ElMessage.success('创建成功')
     }
     showDialog.value = false; editing.value = null; loadExams()
