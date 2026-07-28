@@ -20,7 +20,7 @@
         <template #default="{ row }">
           <el-button size="small" @click="openDialog(row)">编辑</el-button>
           <el-button size="small" v-if="row.status!=='locked'" @click="lockExam(row.id)">锁定</el-button>
-          <el-popconfirm :title="deleteMsg(row)" @confirm="deleteExam(row.id)">
+          <el-popconfirm :title="examStats[row.id] > 0 ? '已导入'+examStats[row.id]+'条成绩，确定删除？' : '确定删除？'" @confirm="deleteExam(row.id)">
             <template #reference><el-button size="small" type="danger">删除</el-button></template>
           </el-popconfirm>
         </template>
@@ -73,8 +73,16 @@ onMounted(async () => {
 
 async function loadExams() {
   loading.value = true
-  try { const r = await api.get('/exams'); exams.value = r.data } catch {}
-  loading.value = false
+  try {
+    const r = await api.get('/exams'); exams.value = r.data
+    // 加载每个考试的成绩数
+    for (const e of exams.value) {
+      try {
+        const sr = await api.get(`/exams/${e.id}/stats`)
+        examStats.value[e.id] = sr.data?.scores || 0
+      } catch {}
+    }
+  } catch {} finally { loading.value = false }
 }
 
 function openDialog(row?: any) {
@@ -109,11 +117,6 @@ async function saveExam() {
 }
 
 const examStats = ref<Record<number, number>>({})
-async function deleteMsg(row: any): Promise<string> {
-  try { const r = await api.get(`/exams/${row.id}/stats`); const cnt = r.data.scores||0
-    examStats.value[row.id] = cnt; return cnt>0 ? `已导入${cnt}条成绩，确定删除？` : '确定删除？'
-  } catch { return '确定删除？' }
-}
 async function deleteExam(id: number) {
   try { await api.delete(`/exams/${id}`); ElMessage.success('已删除'); loadExams() }
   catch (e: any) { ElMessage.error(e.message) }
