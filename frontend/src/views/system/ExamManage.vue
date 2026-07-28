@@ -12,9 +12,6 @@
       </el-table-column>
       <el-table-column prop="enrollment_year" label="入学年份" width="85" />
       <el-table-column prop="grade_name" label="年级" width="70" />
-      <el-table-column prop="status" label="状态" width="70">
-        <template #default="{ row }"><el-tag :type="row.status==='locked'?'danger':'success'" size="small">{{ row.status }}</el-tag></template>
-      </el-table-column>
       <el-table-column prop="exam_date" label="日期" width="110" />
       <el-table-column label="科目" min-width="180">
         <template #default="{ row }"><el-tag v-for="s in row.subjects" :key="s.id" size="small" style="margin:2px">{{ s.subject_name }}({{ s.full_score }})</el-tag></template>
@@ -126,3 +123,8 @@ async function lockExam(id: number) {
   catch (e: any) { ElMessage.error(e.message) }
 }
 </script>
+
+<style scoped>
+:deep(.el-table th.el-table__cell) { background: linear-gradient(180deg,#f0f5fa,#e8f0fe); color:var(--edu-blue); font-weight:600; text-align:center; }
+:deep(.el-table td) { text-align:center; }
+</style>
