@@ -66,6 +66,10 @@ async function loadStudents() {
       api.get('/students', { params: { class_id: classId.value, per_page: 100 } }),
     ])
     examSubjects.value = exr.data?.subjects || []
+    if (exr.data?.grade_id) {
+      const cr = await api.get("/classes", { params: { grade_id: exr.data.grade_id } })
+      classes.value = cr.data || []
+    }
     const students = sr.data || []
     if (!students.length) { ElMessage.warning('该班级没有学生'); return }
 
