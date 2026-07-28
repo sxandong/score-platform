@@ -54,9 +54,9 @@ git clone https://github.com/你的用户名/score-platform.git
 cd score-platform
 
 ## 3. 启动后端
-pip install -r requirements.txt
-copy .env.example .env
-python init_db.py
+pip install -r requirements.txt 
+copy .env.example .env 
+python init_db.py 
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ## 4. 启动前端（新终端）
@@ -72,11 +72,11 @@ sudo apt update
 sudo apt install -y python3.11 python3-pip nodejs npm
 
 ## 2. 克隆并启动
-git clone https://github.com/用户名/score-platform.git
-cd score-platform
-pip install -r requirements.txt
-cp .env.example .env
-python init_db.py
+git clone https://github.com/用户名/score-platform.git 
+cd score-platform 
+pip install -r requirements.txt 
+cp .env.example .env 
+python init_db.py 
 nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 
 ## 3. 前端
