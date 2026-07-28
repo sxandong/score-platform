@@ -125,6 +125,10 @@ async def seed_subjects(db: AsyncSession) -> None:
     await db.execute(text(
         "DELETE FROM role_permissions WHERE role_id=(SELECT id FROM roles WHERE code='teacher')"
         " AND permission_id IN (SELECT id FROM permissions WHERE code='exam:read')"))
+    # 添加 enrollment_year 列到 exams
+    try:
+        await db.execute(text("ALTER TABLE exams ADD COLUMN enrollment_year INTEGER DEFAULT 2026"))
+    except Exception: pass
     # 创建分数线表
     await db.execute(text("""
         CREATE TABLE IF NOT EXISTS score_cutoffs (

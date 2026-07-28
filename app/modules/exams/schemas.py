@@ -7,13 +7,16 @@ class ExamCreate(BaseModel):
     exam_type: str = "midterm"
     semester_id: int
     grade_id: int
+    enrollment_year: int = 2026
     exam_date: str | None = None
-    subjects: list[dict] = []  # [{subject_id, full_score, weight}]
+    subjects: list[dict] = []
 
 
 class ExamUpdate(BaseModel):
     name: str | None = None
     exam_type: str | None = None
+    grade_id: int | None = None
+    enrollment_year: int | None = None
     exam_date: str | None = None
     status: str | None = None
 

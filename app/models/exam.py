@@ -16,6 +16,7 @@ class Exam(Base):
     exam_type = Column(String(20), default="midterm")
     semester_id = Column(Integer, ForeignKey("semesters.id"), nullable=False)
     grade_id = Column(Integer, ForeignKey("grades.id"), nullable=False)
+    enrollment_year = Column(Integer, default=2026)
     exam_date = Column(Date, nullable=True)
     status = Column(String(15), default="draft")
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)

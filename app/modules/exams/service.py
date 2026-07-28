@@ -31,6 +31,7 @@ async def list_exams(
 
     offset = (page - 1) * per_page
     query = select(Exam).options(
+        selectinload(Exam.grade),
         selectinload(Exam.exam_subjects).selectinload(ExamSubject.subject)
     ).order_by(Exam.id.desc()).offset(offset).limit(per_page)
     for cond in conditions:
@@ -66,6 +67,7 @@ async def create_exam(db: AsyncSession, data, created_by: int) -> Exam:
         exam_type=data.exam_type,
         semester_id=data.semester_id,
         grade_id=data.grade_id,
+        enrollment_year=getattr(data, "enrollment_year", None) or 2026,
         exam_date=_parse_date(data.exam_date) if data.exam_date else None,
         created_by=created_by,
     )
@@ -102,6 +104,10 @@ async def update_exam(db: AsyncSession, exam_id: int, data) -> Exam:
         exam.exam_type = data.exam_type
     if data.exam_date is not None:
         exam.exam_date = _parse_date(data.exam_date) if data.exam_date else None
+    if data.grade_id is not None:
+        exam.grade_id = data.grade_id
+    if data.enrollment_year is not None:
+        exam.enrollment_year = data.enrollment_year
     if data.status is not None:
         exam.status = data.status
     await db.flush()
@@ -132,6 +138,8 @@ def _exam_to_dict(exam: Exam) -> dict:
         "exam_type": exam.exam_type,
         "semester_id": exam.semester_id,
         "grade_id": exam.grade_id,
+        "grade_name": exam.grade.name if exam.grade else "",
+        "enrollment_year": exam.enrollment_year or "",
         "exam_date": exam.exam_date.isoformat() if exam.exam_date else None,
         "status": exam.status,
         "created_by": exam.created_by,
