@@ -11,6 +11,12 @@ const router = createRouter({
       meta: { public: true },
     },
     {
+      path: '/change-password',
+      name: 'change-password',
+      component: () => import('@/views/ChangePassword.vue'),
+      meta: { public: true },
+    },
+    {
       path: '/',
       component: () => import('@/layouts/DefaultLayout.vue'),
       redirect: '/dashboard',
@@ -31,19 +37,19 @@ const router = createRouter({
           path: 'grades-classes',
           name: 'grades-classes',
           component: () => import('@/views/system/GradeClassManage.vue'),
-          meta: { title: '年级班级', roles: ['admin'] },
+          meta: { title: '年级班级', roles: ['admin', 'director'] },
         },
         {
           path: 'students',
           name: 'students',
           component: () => import('@/views/system/StudentManage.vue'),
-          meta: { title: '学生管理', roles: ['admin'] },
+          meta: { title: '学生管理', roles: ['admin', 'director'] },
         },
         {
           path: 'electives',
           name: 'electives',
           component: () => import('@/views/system/ElectiveManage.vue'),
-          meta: { title: '选科管理', roles: ['admin'] },
+          meta: { title: '选科管理', roles: ['admin', 'director'] },
         },
         {
           path: 'data-backup',
@@ -61,13 +67,13 @@ const router = createRouter({
           path: 'scores/entry',
           name: 'score-entry',
           component: () => import('@/views/scores/ScoreEntry.vue'),
-          meta: { title: '成绩录入', roles: ['admin', 'teacher'] },
+          meta: { title: '成绩录入', roles: ['admin', 'director', 'teacher'] },
         },
         {
           path: 'scores/import',
           name: 'score-import',
           component: () => import('@/views/scores/BatchImport.vue'),
-          meta: { title: '批量导入', roles: ['admin', 'teacher'] },
+          meta: { title: '批量导入', roles: ['admin', 'director', 'teacher'] },
         },
         {
           path: 'scores/query',
@@ -131,10 +137,13 @@ const router = createRouter({
 router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
   if (to.meta.public) {
-    if (authStore.isLoggedIn) return next('/dashboard')
+    if (authStore.isLoggedIn && to.name === 'login') return next('/dashboard')
     return next()
   }
   if (!authStore.isLoggedIn) return next('/login')
+  if (authStore.mustChangePassword && to.name !== 'change-password') {
+    return next('/change-password')
+  }
   if (to.meta.roles) {
     const required = to.meta.roles as string[]
     if (!required.some((r) => authStore.hasRole(r))) {

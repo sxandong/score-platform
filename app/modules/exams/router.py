@@ -141,7 +141,7 @@ async def save_cutoffs(
 async def delete_exam(
     exam_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     await service.delete_exam(db, exam_id)
     return success_response(message="考试已删除")
@@ -151,7 +151,7 @@ async def delete_exam(
 async def lock_exam(
     exam_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     from app.modules.exams.schemas import ExamUpdate
     exam = await service.update_exam(db, exam_id, ExamUpdate(status="locked"))

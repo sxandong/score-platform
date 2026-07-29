@@ -39,7 +39,7 @@ async def batch_import(
     current_user=Depends(require_role("admin", "director", "teacher")),
 ):
     content = await file.read()
-    result = await service.batch_import_excel(db, content, exam_id)
+    result = await service.batch_import_excel(db, content, exam_id, current_user.id)
     return success_response(data=result,
         message=f"导入完成: {result['total_rows']}行, 新增{result['created_students']}学生, {result['created_scores']}条成绩")
 

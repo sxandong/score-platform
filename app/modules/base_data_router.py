@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api", tags=["基础数据管理"])
 
 class GradeCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=20)
-    stage: str = "senior"
+    stage: str = "高中"
 
 class ClassCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
@@ -76,7 +76,7 @@ async def list_grades(
 async def create_grade(
     req: GradeCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     result = await db.execute(select(Grade).where(Grade.name == req.name))
     if result.scalar_one_or_none():
@@ -89,7 +89,7 @@ async def create_grade(
 async def update_grade(
     grade_id: int, req: GradeCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     result = await db.execute(select(Grade).where(Grade.id == grade_id))
     g = result.scalar_one_or_none()
@@ -101,7 +101,7 @@ async def update_grade(
 async def batch_delete_grades(
     req: BatchDelete,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     from sqlalchemy import delete as sql_delete
     for gid in req.ids:
@@ -118,7 +118,7 @@ async def batch_delete_grades(
 async def delete_grade(
     grade_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     result = await db.execute(select(Grade).where(Grade.id == grade_id))
     g = result.scalar_one_or_none()
@@ -130,7 +130,7 @@ async def delete_grade(
 async def batch_delete_grades(
     req: BatchDelete,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     from sqlalchemy import delete as sql_delete
     for gid in req.ids:
@@ -144,7 +144,7 @@ async def batch_delete_grades(
 async def batch_delete_grades(
     req: BatchDelete,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     from sqlalchemy import delete as sql_delete
     for gid in req.ids:
@@ -187,7 +187,7 @@ async def list_classes(
 async def create_class(
     req: ClassCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     c = Class(name=req.name, grade_id=req.grade_id, head_teacher_id=req.head_teacher_id)
     db.add(c); await db.flush()
@@ -197,7 +197,7 @@ async def create_class(
 async def batch_create_classes(
     req: ClassBatchCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     created, skipped = 0, 0
     for name in req.names:
@@ -213,7 +213,7 @@ async def batch_create_classes(
 async def update_class(
     class_id: int, req: ClassCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     result = await db.execute(select(Class).where(Class.id == class_id))
     c = result.scalar_one_or_none()
@@ -226,7 +226,7 @@ async def update_class(
 async def batch_delete_classes(
     req: BatchDelete,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     from sqlalchemy import delete as sql_delete
     for cid in req.ids:
@@ -240,7 +240,7 @@ async def batch_delete_classes(
 async def delete_class(
     class_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     result = await db.execute(select(Class).where(Class.id == class_id))
     c = result.scalar_one_or_none()
@@ -253,7 +253,7 @@ async def delete_class(
 async def auto_generate_classes(
     req: ClassAutoGenerate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     """按数量自动生成班级: 高三/15 → 高三(1)班~高三(15)班"""
     result = await db.execute(select(Grade).where(Grade.id == req.grade_id))
@@ -275,7 +275,7 @@ async def batch_import_classes(
     grade_id: int | None = None,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     content = await file.read()
     try: df = pd.read_excel(BytesIO(content))
@@ -341,7 +341,7 @@ async def list_students(
 async def create_student(
     req: StudentCreate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     result = await db.execute(select(Student).where(Student.student_no == req.student_no))
     if result.scalar_one_or_none(): raise ValidationException("学籍号已存在")
@@ -360,7 +360,7 @@ async def create_student(
 async def batch_update_electives(
     req: BatchElectiveUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     """批量更新学生选科"""
     ids = req.student_ids
@@ -379,7 +379,7 @@ async def batch_update_electives(
 async def update_student(
     student_id: int, req: StudentUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     result = await db.execute(select(Student).where(Student.id == student_id))
     s = result.scalar_one_or_none()
@@ -397,7 +397,7 @@ async def update_student(
 async def batch_delete_students(
     req: BatchDelete,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     from sqlalchemy import text
     ids_str = ','.join(str(i) for i in req.ids)
@@ -413,7 +413,7 @@ async def batch_delete_students(
 async def delete_student(
     student_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     result = await db.execute(select(Student).where(Student.id == student_id))
     s = result.scalar_one_or_none()
@@ -430,7 +430,7 @@ async def delete_student(
 async def batch_import_students(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     """Excel导入: 列=学籍号,姓名,班级[,政治,历史,地理,物理,化学,生物,技术(1/0)]"""
     content = await file.read()
@@ -528,7 +528,7 @@ async def batch_import_students(
 async def promote_students(
     req: StudentPromote,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     """升年级: 按班号(括号内数字)匹配，如高一(3)班→高二(3)班"""
     from sqlalchemy import text
@@ -650,7 +650,7 @@ class BatchElectiveUpdate(BaseModel):
 async def reassign_students(
     req: StudentReassign,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(require_role("admin", "director")),
 ):
     """批量重新分班: [{student_id, new_class_id}, ...]"""
     from sqlalchemy import text

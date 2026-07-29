@@ -7,7 +7,7 @@ from io import BytesIO
 from app.dependencies import get_db
 from app.core.security import require_role
 from app.core.response import success_response, paginated_response
-from app.modules.users.schemas import UserCreate, UserUpdate
+from app.modules.users.schemas import UserCreate, UserUpdate, BatchResetPasswordRequest, BatchDeleteRequest
 from app.modules.users import service
 
 router = APIRouter(prefix="/api/users", tags=["用户管理"])
@@ -30,10 +30,13 @@ def _user_to_dict(user) -> dict:
 async def list_users(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
+    keyword: str | None = Query(None, description="搜索用户名/姓名/手机/邮箱"),
+    role: str | None = Query(None, description="按角色筛选"),
+    status: str | None = Query(None, description="按状态筛选(active/disabled)"),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_role("admin")),
 ):
-    users, total = await service.list_users_service(db, page, per_page)
+    users, total = await service.list_users_service(db, page, per_page, keyword, role, status)
     return paginated_response(
         items=[_user_to_dict(u) for u in users],
         total=total, page=page, per_page=per_page,
@@ -120,7 +123,7 @@ async def batch_import_users(
 
         pwd = str(row.get("密码", row.get("password", "123456"))).strip()
         user = User(username=username, password_hash=hash_password(pwd),
-                    real_name=real_name)
+                    real_name=real_name, must_change_password=True)
         db.add(user)
         await db.flush()
         if teacher_role:
@@ -131,3 +134,43 @@ async def batch_import_users(
     await db.flush()
     return success_response(data={"created": created, "skipped": skipped},
         message=f"导入完成: 新增{created}个教师, 跳过{skipped}个")
+
+
+@router.post("/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    await service.reset_password_service(db, user_id)
+    return success_response(message="密码已重置为123456，请通知用户登录后修改")
+
+
+@router.post("/batch-reset-password")
+async def batch_reset_password(
+    req: BatchResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    count = await service.batch_reset_password_service(db, req.user_ids)
+    return success_response(data={"reset_count": count}, message=f"已重置{count}个用户密码为123456")
+
+
+@router.delete("/{user_id}")
+async def delete_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    await service.delete_user_service(db, user_id)
+    return success_response(message="用户已删除")
+
+
+@router.post("/batch-delete")
+async def batch_delete_users(
+    req: BatchDeleteRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    count = await service.batch_delete_users_service(db, req.user_ids)
+    return success_response(data={"deleted_count": count}, message=f"已删除{count}个用户")

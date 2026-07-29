@@ -4,11 +4,11 @@
 
     <!-- 筛选 -->
     <el-row :gutter="8" style="margin-bottom:12px">
-      <el-col :span="2"><el-select v-model="filterYear" placeholder="入学年份" clearable @change="onYearChange" style="width:110px">
+      <el-col :span="2"><el-select v-model="filterYear" placeholder="入学年份" @change="onYearChange" style="width:110px">
         <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" /></el-select></el-col>
-      <el-col :span="3"><el-select v-model="filterClassId" placeholder="按班级" clearable @change="loadStudents" style="width:180px">
+      <el-col :span="3"><el-select v-model="filterClassId" placeholder="按班级" clearable :disabled="!filterYear" @change="loadStudents">
         <el-option v-for="c in classes" :key="c.id" :label="c.name" :value="c.id" /></el-select></el-col>
-      <el-col :span="4"><el-select v-model="filterCombo" placeholder="选科组合(最多3门)" multiple :multiple-limit="3" clearable @change="loadStudents" style="width:320px">
+      <el-col :span="4"><el-select v-model="filterCombo" placeholder="选科组合(最多3门)" multiple :multiple-limit="3" clearable :disabled="!filterYear" @change="loadStudents" style="width:320px">
         <el-option v-for="e in ELEC_SUBJS" :key="e" :label="e" :value="e" /></el-select></el-col>
     </el-row>
 
@@ -16,11 +16,11 @@
       <el-col :span="17">
         <el-card>
           <template #header><span style="font-weight:600">学生选科列表</span></template>
-          <el-table :data="students" border stripe size="small" v-loading="loading"
+          <el-table :data="students" border stripe  v-loading="loading"
             max-height="550">
             <el-table-column prop="student_no" label="学籍号" width="130" />
-            <el-table-column prop="name" label="姓名" width="80" />
-            <el-table-column prop="enrollment_year" label="入学年份" width="90" />
+            <el-table-column prop="name" label="姓名" width="100" />
+            <el-table-column prop="enrollment_year" label="入学年份" width="100" />
             <el-table-column prop="class_name" label="班级" width="120" />
             <el-table-column label="选科" min-width="150">
               <template #default="{row}">
@@ -93,17 +93,38 @@ const combos = ref<any[]>([]); const totalStudents = ref(0); const totalWithElec
 const allStudents = ref<any[]>([])
 
 onMounted(async () => {
-  try { const r = await api.get('/classes'); classes.value = r.data } catch {}
+  // 初始化时不加载数据，等待用户选择入学年份
 })
 
-function onYearChange() { filterClassId.value = null; loadStudents() }
+async function onYearChange() {
+  filterClassId.value = null
+  filterCombo.value = []
+  classes.value = []
+  if (!filterYear.value) return
+  // 加载该年份有学生的班级
+  try {
+    const r = await api.get('/students', { params: { enrollment_year: filterYear.value, per_page: 5000 } })
+    const studentData = r.data || []
+    const classIds = new Set(studentData.map((s: any) => s.class_id))
+    // 获取所有班级，然后过滤出该年份有学生的班级
+    const allClasses = await api.get('/classes')
+    classes.value = (allClasses.data || []).filter((c: any) => classIds.has(c.id))
+  } catch {}
+  loadStudents()
+}
 
 async function loadStudents() {
+  if (!filterYear.value) {
+    students.value = []
+    total.value = 0
+    combos.value = []
+    allStudents.value = []
+    return
+  }
   loading.value = true
   try {
-    const params: any = { page: 1, per_page: 5000 }  // 一次加载全部，前端分页
+    const params: any = { page: 1, per_page: 5000, enrollment_year: filterYear.value }
     if (filterClassId.value) params.class_id = filterClassId.value
-    if (filterYear.value) params.enrollment_year = filterYear.value
     const r = await api.get('/students', { params })
     let allData = (r.data || []).map((s:any) => ({ ...s, _editing: false, _elec: [] }))
     // 选科组合筛选

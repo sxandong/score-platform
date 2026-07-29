@@ -1,29 +1,43 @@
 """应用启动入口"""
+import logging
 from contextlib import asynccontextmanager
-import asyncio
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
+from slowapi.middleware import SlowAPIMiddleware
 
+from app.config import settings
 from app.core.database import engine, Base, async_session_factory
 from app.core.exceptions import AppException
+from app.core.response import error_response
+from app.core.rate_limit import limiter, init_limiter
 from app.core.seed import run_all_seeds
+
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    ))
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG if settings.DEBUG else logging.INFO)
 
 
 async def init_database():
     """确保数据库表和数据在应用启动前就绪"""
-    print("Initializing database...")
+    logger.info("Initializing database...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    print("Tables created.")
+    logger.info("Tables created.")
     async with async_session_factory() as db:
         await run_all_seeds(db)
-    print("Seed data loaded.")
+    logger.info("Seed data loaded.")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_limiter(app)
     await init_database()
     yield
     await engine.dispose()
@@ -37,20 +51,31 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(
+    429,
+    lambda request, exc: JSONResponse(
+        content={"code": 429, "message": "请求过于频繁，请稍后重试"},
+        status_code=429,
+    ),
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=settings.CORS_ORIGINS_LIST,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+
+app.add_middleware(SlowAPIMiddleware)
 
 
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException):
     return JSONResponse(
         content={"code": exc.code, "message": exc.message, "data": exc.data},
-        status_code=200,
+        status_code=exc.code,
     )
 
 
@@ -58,21 +83,32 @@ async def app_exception_handler(request: Request, exc: AppException):
 async def general_exception_handler(request: Request, exc: Exception):
     import traceback
     detail = traceback.format_exc()
-    print(f"\n[ERROR 500] {request.method} {request.url.path}")
-    print(detail)
+    logger.error(f"[ERROR 500] {request.method} {request.url.path}\n{detail}")
+    if settings.DEBUG:
+        message = f"服务器内部错误: {str(exc)}"
+        data = {"error_type": type(exc).__name__}
+    else:
+        message = "服务器内部错误"
+        data = None
     return JSONResponse(
-        content={
-            "code": 500,
-            "message": f"服务器内部错误: {str(exc)}",
-            "data": {"error_type": type(exc).__name__},
-        },
-        status_code=200,
+        content={"code": 500, "message": message, "data": data},
+        status_code=500,
     )
 
 
 @app.get("/")
 async def root():
     return RedirectResponse(url="/api/docs")
+
+
+@app.get("/health")
+async def health_check():
+    return JSONResponse(content={
+        "status": "ok",
+        "version": "0.1.0",
+        "database": "connected",
+        "debug": settings.DEBUG,
+    })
 
 
 # Register module routers

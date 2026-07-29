@@ -17,3 +17,11 @@ class UserUpdate(BaseModel):
     email: str | None = None
     status: str | None = None
     role_codes: list[str] | None = None
+
+
+class BatchResetPasswordRequest(BaseModel):
+    user_ids: list[int]
+
+
+class BatchDeleteRequest(BaseModel):
+    user_ids: list[int]

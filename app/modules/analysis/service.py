@@ -5,6 +5,11 @@ from sqlalchemy.orm import selectinload
 
 from app.models.exam import Exam, ExamSubject, Score
 from app.models.base_data import Class, Student, Subject
+from app.models.audit import RankSnapshot
+from app.core.constants import (
+    YWYS_NAMES, EXCELLENT_RATIO, PASS_RATIO, RANK_TYPE_TOTAL,
+    RANK_TYPE_SUBJECT, RANK_TYPE_YUWAI, RANK_TYPE_TOP3
+)
 
 
 async def class_compare(
@@ -12,12 +17,9 @@ async def class_compare(
 ) -> list[dict]:
     """班级横向对比分析"""
     conditions = [Score.exam_id == exam_id]
-    if subject_id:
-        conditions.append(Score.subject_id == subject_id)
-
-    # 获取满分
     full_score = 100.0
     if subject_id:
+        conditions.append(Score.subject_id == subject_id)
         result = await db.execute(
             select(ExamSubject.full_score).where(
                 and_(ExamSubject.exam_id == exam_id,
@@ -28,8 +30,8 @@ async def class_compare(
         if fs:
             full_score = float(fs)
 
-    excellent_threshold = full_score * 0.85
-    pass_threshold = full_score * 0.60
+    excellent_threshold = full_score * EXCELLENT_RATIO
+    pass_threshold = full_score * PASS_RATIO
 
     result = await db.execute(
         select(
@@ -70,12 +72,11 @@ async def class_compare(
 async def student_trend(
     db: AsyncSession, student_id: int, subject_id: int | None = None,
 ) -> list[dict]:
-    """学生成绩纵向追踪 — 返回每次考试的各科成绩"""
+    """学生成绩纵向追踪"""
     conditions = [Score.student_id == student_id]
     if subject_id:
         conditions.append(Score.subject_id == subject_id)
 
-    # 获取所有成绩 (含科目名)
     result = await db.execute(
         select(Score).options(
             selectinload(Score.exam), selectinload(Score.subject)
@@ -83,8 +84,6 @@ async def student_trend(
     )
     scores = list(result.scalars().all())
 
-    YWS = {"语文", "数学", "外语"}
-    # 按考试分组
     exam_data: dict[int, dict] = {}
     for s in scores:
         eid = s.exam_id
@@ -104,13 +103,11 @@ async def student_trend(
         score_val = float(s.total_score)
         exam_data[eid]["subjects"][sn] = score_val
         exam_data[eid]["total"] += score_val
-        if sn in YWS:
+        if sn in YWYS_NAMES:
             exam_data[eid]["yws"][sn] = score_val
             exam_data[eid]["yws_total"] += score_val
 
-    # 计算每个考试的7选3 (按选科或自动取前3)
-    from app.models.base_data import Student as StuModel
-    result = await db.execute(select(StuModel).where(StuModel.id == student_id))
+    result = await db.execute(select(Student).where(Student.id == student_id))
     stu = result.scalar_one_or_none()
     electives_str = stu.electives if stu and stu.electives else ""
     for eid, data in exam_data.items():
@@ -120,7 +117,7 @@ async def student_trend(
             data["top3"] = {k: v for k, v in top3_items}
             data["top3_total"] = sum(v for _, v in top3_items)
         else:
-            other = {k: v for k, v in data["subjects"].items() if k not in YWS}
+            other = {k: v for k, v in data["subjects"].items() if k not in YWYS_NAMES}
             top3_items = sorted(other.items(), key=lambda x: x[1], reverse=True)[:3]
             data["top3"] = dict(top3_items)
             data["top3_total"] = sum(v for _, v in top3_items)
@@ -132,7 +129,6 @@ async def grade_overview(
     db: AsyncSession, exam_id: int,
 ) -> dict:
     """年级总览"""
-    # 总分统计
     result = await db.execute(
         select(
             func.avg(func.total_score).label("avg"),
@@ -149,7 +145,6 @@ async def grade_overview(
     )
     stats = result.one()
 
-    # 分数段分布
     result = await db.execute(
         select(
             func.sum(
@@ -197,10 +192,9 @@ async def grade_overview(
 
 async def get_ranks(
     db: AsyncSession, exam_id: int, page: int = 1, per_page: int = 50,
-    class_id: int | None = None, rank_type: str = "total",
+    class_id: int | None = None, rank_type: str = RANK_TYPE_TOTAL,
 ) -> tuple[list[dict], int]:
-    """获取排名列表: rank_type = total | yuwai | top3 | subject"""
-    from app.models.audit import RankSnapshot
+    """获取排名列表"""
     conditions = [
         RankSnapshot.exam_id == exam_id,
         RankSnapshot.rank_type == rank_type,
@@ -208,9 +202,8 @@ async def get_ranks(
     if class_id:
         conditions.append(Student.class_id == class_id)
 
-    # 预加载科目名称映射
     subj_names: dict[int, str] = {}
-    if rank_type == "subject":
+    if rank_type == RANK_TYPE_SUBJECT:
         result = await db.execute(select(Subject))
         subj_names = {s.id: s.name for s in result.scalars().all()}
 
@@ -237,13 +230,13 @@ async def get_ranks(
             "class_name": cname,
             "total_score": float(rs.total_score),
         }
-        if rs.rank_type == "subject" and rs.subject_id:
+        if rs.rank_type == RANK_TYPE_SUBJECT and rs.subject_id:
             row["subject_name"] = subj_names.get(rs.subject_id, str(rs.subject_id))
         rows.append(row)
         ranked_student_ids.append(rs.student_id)
 
-    # 如果是总分排名，补充各科成绩 + 语数外/7选3排名
-    if rank_type == "total" and rows:
+    # 补充各科成绩 + 语数外/7选3排名
+    if rank_type == RANK_TYPE_TOTAL and rows:
         result2 = await db.execute(
             select(Score).options(selectinload(Score.subject))
             .where(and_(Score.exam_id == exam_id, Score.student_id.in_(ranked_student_ids))))
@@ -254,17 +247,20 @@ async def get_ranks(
             sn = sc.subject.name if sc.subject else str(sc.subject_id)
             subj_scores[sc.student_id][sn] = float(sc.total_score)
 
-        # 补充语数外/7选3排名
-        for rt, key in [("yuwai", "yuwai_rank"), ("top3", "top3_rank")]:
+        # 批量查询语数外排名
+        for rt, key, total_key in [
+            (RANK_TYPE_YUWAI, "yuwai_rank", "yuwai_total"),
+            (RANK_TYPE_TOP3, "top3_rank", "top3_total"),
+        ]:
             result3 = await db.execute(
                 select(RankSnapshot).where(and_(
                     RankSnapshot.exam_id == exam_id, RankSnapshot.rank_type == rt,
                     RankSnapshot.student_id.in_(ranked_student_ids))))
-            for rs2 in result3.scalars().all():
-                for row in rows:
-                    if row["student_id"] == rs2.student_id:
-                        row[key] = rs2.grade_rank
-                        row[key.replace("_rank", "_total")] = float(rs2.total_score)
+            rank_map = {rs.student_id: rs.grade_rank for rs in result3.scalars().all()}
+            total_map = {rs.student_id: float(rs.total_score) for rs in result3.scalars().all()}
+            for row in rows:
+                row[key] = rank_map.get(row["student_id"])
+                row[total_key] = total_map.get(row["student_id"])
 
         for row in rows:
             row["subjects"] = subj_scores.get(row["student_id"], {})

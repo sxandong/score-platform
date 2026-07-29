@@ -1,6 +1,6 @@
 """用户、角色、权限模型"""
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Table
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -28,6 +28,7 @@ class User(Base):
     email = Column(String(100), default="")
     avatar_url = Column(String(500), default="")
     status = Column(String(10), default="active")
+    must_change_password = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 

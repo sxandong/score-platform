@@ -14,7 +14,9 @@
           <el-table-column type="selection" width="40" />
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column prop="name" label="年级名称" />
-          <el-table-column prop="stage" label="学段" width="100" />
+          <el-table-column label="学段" width="100">
+            <template #default="{ row }">{{ stageMap[row.stage] || row.stage }}</template>
+          </el-table-column>
           <el-table-column label="操作" width="180">
             <template #default="{ row }">
               <el-button size="small" @click="openGradeDialog(row)">编辑</el-button>
@@ -30,7 +32,7 @@
             <el-form-item label="名称"><el-input v-model="gradeForm.name" /></el-form-item>
             <el-form-item label="学段">
               <el-select v-model="gradeForm.stage">
-                <el-option label="高中" value="senior" /><el-option label="初中" value="junior" />
+                <el-option label="高中" value="高中" /><el-option label="初中" value="初中" />
               </el-select>
             </el-form-item>
           </el-form>
@@ -148,9 +150,16 @@ const grades = ref<any[]>([]); const classes = ref<any[]>([])
 const gLoading = ref(false); const cLoading = ref(false)
 const gSelected = ref<any[]>([]); const cSelected = ref<any[]>([])
 
+const stageMap: Record<string, string> = {
+  senior: '高中',
+  junior: '初中',
+  高中: '高中',
+  初中: '初中',
+}
+
 // ---- 年级 ----
 const gradeDialog = ref(false); const editingGrade = ref<any>(null)
-const gradeForm = reactive({ name: '', stage: 'senior' })
+const gradeForm = reactive({ name: '', stage: '高中' })
 
 async function loadGrades() {
   gLoading.value = true
@@ -161,7 +170,7 @@ async function loadGrades() {
 }
 function openGradeDialog(row?: any) {
   editingGrade.value = row || null
-  gradeForm.name = row?.name || ''; gradeForm.stage = row?.stage || 'senior'
+  gradeForm.name = row?.name || ''; gradeForm.stage = row?.stage || '高中'
   gradeDialog.value = true
 }
 async function saveGrade() {

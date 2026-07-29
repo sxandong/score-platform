@@ -1,18 +1,24 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import api from '@/api'
+import type { ApiResponse, UserInfo, LoginResponse } from '@/types/api'
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<any>(null)
+  const user = ref<UserInfo | null>(null)
   const token = ref(localStorage.getItem('access_token') || '')
   const refreshToken = ref(localStorage.getItem('refresh_token') || '')
   const permissions = ref<string[]>([])
   const roles = ref<string[]>([])
 
   const isLoggedIn = ref(!!token.value)
+  const mustChangePassword = computed(() => user.value?.must_change_password ?? false)
 
-  async function login(username: string, password: string) {
-    const res = await api.post('/auth/login', { username, password })
+  async function login(username: string, password: string): Promise<LoginResponse> {
+    const res = await api.post<unknown, ApiResponse<LoginResponse>>(
+      '/auth/login',
+      { username, password },
+      { skipAuthRedirect: true }
+    )
     const data = res.data
     token.value = data.access_token
     refreshToken.value = data.refresh_token
@@ -27,7 +33,14 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
-  function logout() {
+  async function changePassword(oldPassword: string, newPassword: string): Promise<void> {
+    await api.post('/auth/change-password', { old_password: oldPassword, new_password: newPassword })
+    if (user.value) {
+      user.value.must_change_password = false
+    }
+  }
+
+  function logout(): void {
     token.value = ''
     refreshToken.value = ''
     user.value = null
@@ -46,5 +59,8 @@ export const useAuthStore = defineStore('auth', () => {
     return permissions.value.includes(perm)
   }
 
-  return { user, token, refreshToken, permissions, roles, isLoggedIn, login, logout, hasRole, hasPermission }
+  return {
+    user, token, refreshToken, permissions, roles, isLoggedIn, mustChangePassword,
+    login, changePassword, logout, hasRole, hasPermission,
+  }
 })

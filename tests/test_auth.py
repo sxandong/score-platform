@@ -1,12 +1,11 @@
 """认证模块测试"""
 import pytest
 from fastapi.testclient import TestClient
-from app import create_app
 
 
 @pytest.fixture
 def client():
-    app = create_app()
+    from app.main import app
     return TestClient(app)
 
 
@@ -28,3 +27,11 @@ def test_users_requires_admin(client):
     resp = client.get("/api/users")
     json_data = resp.json()
     assert json_data["code"] == 401
+
+
+def test_health_check(client):
+    """健康检查端点应返回200"""
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"

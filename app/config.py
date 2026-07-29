@@ -41,13 +41,21 @@ class Settings(BaseSettings):
     def CELERY_BROKER_URL(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/1"
 
-    JWT_SECRET: str = "change-me-in-production-use-random-64-chars"
+    JWT_SECRET: str = "dev-secret-change-in-production"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    CORS_ORIGINS: str = "http://localhost:5173"
+
+    @property
+    def CORS_ORIGINS_LIST(self) -> list[str]:
+        return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+
     UPLOAD_DIR: str = "uploads"
     MAX_UPLOAD_SIZE_MB: int = 10
+
+    RATE_LIMIT_LOGIN: str = "5/minute"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

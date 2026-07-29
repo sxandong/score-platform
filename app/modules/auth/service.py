@@ -41,6 +41,7 @@ async def login_service(
             "real_name": user.real_name,
             "roles": role_codes,
             "permissions": permission_codes,
+            "must_change_password": user.must_change_password or False,
         },
     }
 

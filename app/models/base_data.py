@@ -9,7 +9,7 @@ class Grade(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(20), nullable=False)
-    stage = Column(String(10), default="senior")
+    stage = Column(String(10), default="高中")
 
     classes = relationship("Class", back_populates="grade")
 
