@@ -37,11 +37,12 @@
       <el-col :span="8">
         <el-card>
           <template #header><span style="font-weight:600">操作指引</span></template>
-          <el-steps direction="vertical" :active="4" space="24px">
+          <el-steps direction="vertical" :active="5" space="24px">
             <el-step title="数据准备" description="导入学生名单与选科信息" />
             <el-step title="创建考试" description="新建考试并关联科目" />
             <el-step title="录入成绩" description="单条录入或Excel批量导入" />
             <el-step title="查询分析" description="查看成绩与排名趋势" />
+            <el-step title="报表导出" description="导出学生成绩报告单" />
           </el-steps>
         </el-card>
       </el-col>

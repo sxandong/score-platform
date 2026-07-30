@@ -84,6 +84,12 @@ async def student_trend(
     )
     scores = list(result.scalars().all())
 
+    # 加载科目名称映射
+    subj_names_map: dict[int, str] = {}
+    subj_result = await db.execute(select(Subject))
+    for s in subj_result.scalars().all():
+        subj_names_map[s.id] = s.name
+
     exam_data: dict[int, dict] = {}
     for s in scores:
         eid = s.exam_id
@@ -94,8 +100,7 @@ async def student_trend(
                 "exam_name": e.name if e else "",
                 "exam_date": e.exam_date.isoformat() if e and e.exam_date else None,
                 "subjects": {},
-                "yws": {}, "top3": {},
-                "total": 0, "yws_total": 0, "top3_total": 0,
+                "total": 0, "yuwai_total": 0, "top3_total": 0,
                 "grade_rank": s.grade_rank,
                 "class_rank": s.class_rank,
             }
@@ -103,9 +108,8 @@ async def student_trend(
         score_val = float(s.total_score)
         exam_data[eid]["subjects"][sn] = score_val
         exam_data[eid]["total"] += score_val
-        if sn in YWYS_NAMES:
-            exam_data[eid]["yws"][sn] = score_val
-            exam_data[eid]["yws_total"] += score_val
+        if sn in YWYS_NAMES or sn == "英语":
+            exam_data[eid]["yuwai_total"] += score_val
 
     result = await db.execute(select(Student).where(Student.id == student_id))
     stu = result.scalar_one_or_none()
@@ -113,14 +117,40 @@ async def student_trend(
     for eid, data in exam_data.items():
         if electives_str:
             selected = [s.strip() for s in electives_str.split(",") if s.strip()]
-            top3_items = [(k, data["subjects"].get(k, 0)) for k in selected]
-            data["top3"] = {k: v for k, v in top3_items}
-            data["top3_total"] = sum(v for _, v in top3_items)
+            top3_sum = sum(data["subjects"].get(k, 0) for k in selected[:3])
+            data["top3_total"] = top3_sum
         else:
-            other = {k: v for k, v in data["subjects"].items() if k not in YWYS_NAMES}
-            top3_items = sorted(other.items(), key=lambda x: x[1], reverse=True)[:3]
-            data["top3"] = dict(top3_items)
-            data["top3_total"] = sum(v for _, v in top3_items)
+            other = {k: v for k, v in data["subjects"].items() if k not in YWYS_NAMES and k != "英语"}
+            top3_items = sorted(other.values(), reverse=True)[:3]
+            data["top3_total"] = sum(top3_items)
+
+    # 查询语数外、7选3排名和科目排名
+    exam_ids = list(exam_data.keys())
+    if exam_ids:
+        from app.models.audit import RankSnapshot
+        for eid, data in exam_data.items():
+            # 查询语数外和7选3排名
+            for rank_type, key in [("yuwai", "yuwai_rank"), ("top3", "top3_rank")]:
+                result = await db.execute(
+                    select(RankSnapshot).where(
+                        and_(RankSnapshot.exam_id == eid,
+                             RankSnapshot.rank_type == rank_type,
+                             RankSnapshot.student_id == student_id)))
+                rs = result.scalar_one_or_none()
+                data[key] = rs.grade_rank if rs else None
+
+            # 查询各科排名
+            subj_ranks: dict[str, int] = {}
+            subj_result = await db.execute(
+                select(RankSnapshot).where(
+                    and_(RankSnapshot.exam_id == eid,
+                         RankSnapshot.rank_type == "subject",
+                         RankSnapshot.student_id == student_id)))
+            for rs in subj_result.scalars().all():
+                if rs.subject_id:
+                    subj_name = subj_names_map.get(rs.subject_id, str(rs.subject_id))
+                    subj_ranks[subj_name] = rs.grade_rank
+            data["subject_ranks"] = subj_ranks
 
     return list(exam_data.values())
 
@@ -247,7 +277,15 @@ async def get_ranks(
             sn = sc.subject.name if sc.subject else str(sc.subject_id)
             subj_scores[sc.student_id][sn] = float(sc.total_score)
 
-        # 批量查询语数外排名
+        # 获取学生选科信息
+        result_stu = await db.execute(
+            select(Student).where(Student.id.in_(ranked_student_ids)))
+        stu_map = {s.id: s for s in result_stu.scalars().all()}
+
+        # 定义语数外科目名 (含"英语"作为"外语"的别名)
+        local_ywys = YWYS_NAMES | {"英语"}
+
+        # 先从 rank_snapshots 查询 yuwai/top3 排名
         for rt, key, total_key in [
             (RANK_TYPE_YUWAI, "yuwai_rank", "yuwai_total"),
             (RANK_TYPE_TOP3, "top3_rank", "top3_total"),
@@ -261,6 +299,51 @@ async def get_ranks(
             for row in rows:
                 row[key] = rank_map.get(row["student_id"])
                 row[total_key] = total_map.get(row["student_id"])
+
+        # 回退: 如果 rank_snapshots 没有 yuwai/top3 数据, 直接从成绩计算
+        needs_yuwai_fallback = all(row.get("yuwai_total") is None for row in rows)
+        needs_top3_fallback = all(row.get("top3_total") is None for row in rows)
+
+        if needs_yuwai_fallback or needs_top3_fallback:
+            # 先计算总分
+            for row in rows:
+                sid = row["student_id"]
+                subs = subj_scores.get(sid, {})
+                if needs_yuwai_fallback:
+                    yuwai_sum = sum(subs.get(sn, 0) for sn in local_ywys)
+                    row["yuwai_total"] = yuwai_sum
+                if needs_top3_fallback:
+                    st = stu_map.get(sid)
+                    electives_str = st.electives if st else ''
+                    if electives_str:
+                        selected = [s.strip() for s in electives_str.split(',') if s.strip()]
+                        top3_sum = sum(subs.get(s, 0) for s in selected[:3])
+                    else:
+                        other = {k: v for k, v in subs.items() if k not in local_ywys}
+                        top3_items = sorted(other.values(), reverse=True)[:3]
+                        top3_sum = sum(top3_items)
+                    row["top3_total"] = top3_sum
+
+            # 再计算排名 (如果 rank_snapshots 没有)
+            if needs_yuwai_fallback:
+                sorted_yuwai = sorted(
+                    [(row["student_id"], row["yuwai_total"]) for row in rows],
+                    key=lambda x: x[1], reverse=True)
+                for rank, (sid, _) in enumerate(sorted_yuwai, 1):
+                    for row in rows:
+                        if row["student_id"] == sid:
+                            row["yuwai_rank"] = rank
+                            break
+
+            if needs_top3_fallback:
+                sorted_top3 = sorted(
+                    [(row["student_id"], row["top3_total"]) for row in rows],
+                    key=lambda x: x[1], reverse=True)
+                for rank, (sid, _) in enumerate(sorted_top3, 1):
+                    for row in rows:
+                        if row["student_id"] == sid:
+                            row["top3_rank"] = rank
+                            break
 
         for row in rows:
             row["subjects"] = subj_scores.get(row["student_id"], {})

@@ -40,8 +40,41 @@ async def batch_import(
 ):
     content = await file.read()
     result = await service.batch_import_excel(db, content, exam_id, current_user.id)
-    return success_response(data=result,
-        message=f"导入完成: {result['total_rows']}行, 新增{result['created_students']}学生, {result['created_scores']}条成绩")
+    
+    # 构建详细的成功提示信息
+    msg_parts = []
+    has_new = result['created_students'] > 0 or result['created_scores'] > 0
+    has_update = result['updated_scores'] > 0
+    has_error = len(result['errors']) > 0
+    has_skipped = result['skipped_same'] > 0
+    
+    if has_new and has_update:
+        msg_parts.append("导入完成")
+    elif has_new:
+        msg_parts.append("新增导入完成")
+    elif has_update:
+        msg_parts.append("覆盖更新完成")
+    else:
+        msg_parts.append("导入处理完成")
+    
+    if result['created_students'] > 0:
+        msg_parts.append(f"新增 {result['created_students']} 名学生")
+    if result['created_scores'] > 0:
+        msg_parts.append(f"新增 {result['created_scores']} 条成绩")
+    if result['updated_scores'] > 0:
+        msg_parts.append(f"覆盖更新 {result['updated_scores']} 条成绩")
+    if result['skipped_same'] > 0:
+        msg_parts.append(f"跳过 {result['skipped_same']} 条(分数相同)")
+    if has_error:
+        msg_parts.append(f"失败 {len(result['errors'])} 条")
+    
+    elapsed = result.get('elapsed_seconds', 0)
+    if elapsed:
+        msg_parts.append(f"耗时 {elapsed} 秒")
+    
+    message = "，".join(msg_parts)
+    
+    return success_response(data=result, message=message)
 
 
 @router.get("/class/{class_id}/exam/{exam_id}")

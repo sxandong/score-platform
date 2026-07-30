@@ -51,9 +51,9 @@
       <el-table-column prop="grade_rank" label="级排" width="65">
         <template #default="{row}"><span :class="rankClass(row.grade_rank)">{{ row.grade_rank }}</span></template>
       </el-table-column>
-      <el-table-column prop="yws_total" label="语数外总分" width="100" />
-      <el-table-column prop="yws_rank" label="语数外排名" width="100">
-        <template #default="{row}"><span :class="rankClass(row.yws_rank)">{{ row.yws_rank }}</span></template>
+      <el-table-column prop="yuwai_total" label="语数外总分" width="100" />
+      <el-table-column prop="yuwai_rank" label="语数外排名" width="100">
+        <template #default="{row}"><span :class="rankClass(row.yuwai_rank)">{{ row.yuwai_rank }}</span></template>
       </el-table-column>
       <el-table-column prop="top3_total" label="7选3总分" width="95" />
       <el-table-column prop="top3_rank" label="7选3排名" width="95">
@@ -83,11 +83,11 @@
         <el-table-column prop="grade_rank" label="级排" width="65">
           <template #default="{row}"><span :class="rankClass(row.grade_rank)">{{ row.grade_rank }}</span></template>
         </el-table-column>
-        <el-table-column prop="yuwai" label="语数外总分" width="100" />
+        <el-table-column prop="yuwai_total" label="语数外总分" width="100" />
         <el-table-column prop="yuwai_rank" label="语数外排名" width="100">
           <template #default="{row}"><span :class="rankClass(row.yuwai_rank)">{{ row.yuwai_rank }}</span></template>
         </el-table-column>
-        <el-table-column prop="top3" label="7选3总分" width="95" />
+        <el-table-column prop="top3_total" label="7选3总分" width="95" />
         <el-table-column prop="top3_rank" label="7选3排名" width="95">
           <template #default="{row}"><span :class="rankClass(row.top3_rank)">{{ row.top3_rank }}</span></template>
         </el-table-column>
@@ -199,8 +199,33 @@ async function loadGradeRanks() {
     const r = await api.get('/analysis/ranks', {
       params: { exam_id: gradeExamId.value, rank_type: 'total', per_page: gradeTopN.value }
     })
-    gradeData.value = r.data || []
-  } catch {} finally { loading.value = false }
+    console.log('=== Grade Ranks API Response ===')
+    console.log('Full response:', r)
+    console.log('r.data type:', typeof r.data, Array.isArray(r.data) ? 'array' : 'object')
+    console.log('r.data:', r.data)
+    
+    // paginated_response: {code, message, data: [...], meta: {...}}
+    // After interceptor: {code, message, data: [...], meta: {...}}
+    // So r.data should be the array directly
+    const rawData = r.data
+    if (Array.isArray(rawData)) {
+      gradeData.value = rawData
+    } else if (rawData && Array.isArray(rawData.items)) {
+      gradeData.value = rawData.items
+    } else {
+      gradeData.value = []
+    }
+    
+    console.log('gradeData.length:', gradeData.value.length)
+    if (gradeData.value.length > 0) {
+      console.log('First row keys:', Object.keys(gradeData.value[0]))
+      console.log('First row:', gradeData.value[0])
+      console.log('yuwai_total:', gradeData.value[0].yuwai_total)
+      console.log('top3_total:', gradeData.value[0].top3_total)
+    }
+  } catch (e) {
+    console.error('loadGradeRanks error:', e)
+  } finally { loading.value = false }
 }
 
 function onTabChange() { scoreData.value = []; studentDetail.value = null; studentResults.value = []; rankCache.value = {}; gradeData.value = [] }
@@ -246,40 +271,58 @@ async function loadStudentScores() {
     const rows: any[] = []
     for (const exam of examList) {
       const numEid = Number(exam.exam_id); const cacheKey = String(numEid)
+      
+      // Try to get rank data from rank_snapshots first
+      let ywArr: any[] = []; let t3Arr: any[] = []; let subjArr: any[] = []
       if (!rankCache.value[`yw_${cacheKey}`]) {
         const fetchRank = async (type: string, perPage: number) => {
           try {
             const r = await api.get('/analysis/ranks', { params: { exam_id: numEid, rank_type: type, per_page: perPage } })
-            return r.data || []
+            const d = r.data
+            if (Array.isArray(d)) return d
+            if (d && Array.isArray(d.items)) return d.items
+            return []
           } catch { return [] }
         }
         const [ywData, t3Data, subjData] = await Promise.all([
-          fetchRank('yuwai', 2000), fetchRank('top3', 2000), fetchRank('subject', 5000),
+          fetchRank('yuwai', 5000), fetchRank('top3', 5000), fetchRank('subject', 5000),
         ])
         rankCache.value[`yw_${cacheKey}`] = ywData
         rankCache.value[`t3_${cacheKey}`] = t3Data
         rankCache.value[`subj_${cacheKey}`] = subjData
       }
-      const ywArr = rankCache.value[`yw_${cacheKey}`] || []
-      const t3Arr = rankCache.value[`t3_${cacheKey}`] || []
+      ywArr = rankCache.value[`yw_${cacheKey}`] || []
+      t3Arr = rankCache.value[`t3_${cacheKey}`] || []
+      subjArr = rankCache.value[`subj_${cacheKey}`] || []
+      
       const ywMatch = ywArr.find((x: any) => Number(x.student_id) === numSid)
       const t3Match = t3Arr.find((x: any) => Number(x.student_id) === numSid)
 
       const gr = exam.grade_rank
       const cr = exam.class_rank
-      const ywr = ywMatch ? Number(ywMatch.rank) : 0
-      const t3r = t3Match ? Number(t3Match.rank) : 0
+      
+      // Use rank_snapshots data first, fallback to student-trend computed data
+      const yuwaiTotal = ywMatch ? Number(ywMatch.total_score) : (Number(exam.yuwai_total) || 0)
+      const yuwaiRank = ywMatch 
+        ? Number(ywMatch.grade_rank ?? ywMatch.rank) 
+        : (exam.yuwai_rank ? Number(exam.yuwai_rank) : 0)
+      const top3Total = t3Match ? Number(t3Match.total_score) : (Number(exam.top3_total) || 0)
+      const top3Rank = t3Match 
+        ? Number(t3Match.grade_rank ?? t3Match.rank) 
+        : (exam.top3_rank ? Number(exam.top3_rank) : 0)
+      
       rows.push({
         exam_id: exam.exam_id, name: st.name || '', student_no: st.student_no || '',
         exam_name: exam.exam_name, exam_date: exam.exam_date,
         subjects: exam.subjects || {},
+        subject_ranks: exam.subject_ranks || {},
         total: Number(exam.total) || 0,
         grade_rank: (gr !== null && gr !== undefined) ? Number(gr) : 0,
         class_rank: (cr !== null && cr !== undefined) ? Number(cr) : 0,
-        yuwai: ywMatch ? Number(ywMatch.total_score) : (Number(exam.yws_total) || 0),
-        yuwai_rank: ywr,
-        top3: t3Match ? Number(t3Match.total_score) : (Number(exam.top3_total) || 0),
-        top3_rank: t3r,
+        yuwai_total: yuwaiTotal,
+        yuwai_rank: yuwaiRank,
+        top3_total: top3Total,
+        top3_rank: top3Rank,
       })
     }
     scoreData.value = rows
@@ -335,7 +378,11 @@ function drawCharts(data: any[], numSid: number) {
   chartSubjs.value.forEach(sn => {
     const el = document.getElementById('chart-'+sn); if (!el) return
     const isAllSubj = ALL_CHART.includes(sn)
+    // Use subject_ranks from backend response (student_trend), fallback to subj cache
     const ranks = sorted.map((r:any) => {
+      if (r.subject_ranks && r.subject_ranks[sn] != null) {
+        return toNum(r.subject_ranks[sn])
+      }
       const cache = rankCache.value[`subj_${r.exam_id}`] || []
       const f = cache.find((x:any) => x.subject_name === sn && Number(x.student_id) === numSid)
       return f ? toNum(f.rank) : null

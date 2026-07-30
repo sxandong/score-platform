@@ -49,73 +49,88 @@ async def _calculate_ranks_async(exam_id: int):
     now_str = _now_str()
 
     async with async_session_factory() as db:
-        # 0. 清除旧排名
-        await db.execute(
-            text("DELETE FROM rank_snapshots WHERE exam_id = :eid"),
-            {"eid": exam_id}
-        )
+        try:
+            # 0. 清除旧排名
+            await db.execute(
+                text("DELETE FROM rank_snapshots WHERE exam_id = :eid"),
+                {"eid": exam_id}
+            )
+            logger.info(f"[RankCalc] Exam {exam_id}: cleared old ranks")
 
-        # ===== 1. 总分排名 =====
-        await db.execute(text("""
-            INSERT INTO rank_snapshots (exam_id, student_id, total_score,
-                grade_rank, class_rank, rank_type, calc_at)
-            SELECT :eid, student_id, SUM(total_score),
-                ROW_NUMBER() OVER (ORDER BY SUM(total_score) DESC),
-                ROW_NUMBER() OVER (PARTITION BY s.class_id ORDER BY SUM(total_score) DESC),
-                'total', :now
-            FROM scores JOIN students s ON scores.student_id = s.id
-            WHERE scores.exam_id = :eid
-            GROUP BY student_id, s.class_id
-        """), {"eid": exam_id, "now": now_str})
-
-        # 回写 scores 的 class_rank/grade_rank (跨库兼容)
-        rank_result = await db.execute(text("""
-            SELECT student_id, class_rank, grade_rank
-            FROM rank_snapshots
-            WHERE exam_id = :eid AND rank_type = 'total'
-        """), {"eid": exam_id})
-        rank_updates = [
-            {"eid": exam_id, "sid": row.student_id, "cr": row.class_rank, "gr": row.grade_rank}
-            for row in rank_result
-        ]
-        if rank_updates:
+            # ===== 1. 总分排名 =====
             await db.execute(text("""
-                UPDATE scores SET class_rank = :cr, grade_rank = :gr
-                WHERE exam_id = :eid AND student_id = :sid
-            """), rank_updates)
+                INSERT INTO rank_snapshots (exam_id, student_id, total_score,
+                    grade_rank, class_rank, rank_type, calc_at)
+                SELECT :eid, student_id, SUM(total_score),
+                    ROW_NUMBER() OVER (ORDER BY SUM(total_score) DESC),
+                    ROW_NUMBER() OVER (PARTITION BY s.class_id ORDER BY SUM(total_score) DESC),
+                    'total', :now
+                FROM scores JOIN students s ON scores.student_id = s.id
+                WHERE scores.exam_id = :eid
+                GROUP BY student_id, s.class_id
+            """), {"eid": exam_id, "now": now_str})
+            logger.info(f"[RankCalc] Exam {exam_id}: total ranks calculated")
 
-        # ===== 2. 单科排名 =====
-        await db.execute(text("""
-            INSERT INTO rank_snapshots (exam_id, student_id, subject_id, total_score,
-                grade_rank, class_rank, rank_type, calc_at)
-            SELECT :eid, student_id, subject_id, total_score,
-                ROW_NUMBER() OVER (PARTITION BY subject_id ORDER BY total_score DESC),
-                ROW_NUMBER() OVER (PARTITION BY subject_id, s.class_id ORDER BY total_score DESC),
-                'subject', :now
-            FROM scores JOIN students s ON scores.student_id = s.id
-            WHERE scores.exam_id = :eid
-        """), {"eid": exam_id, "now": now_str})
+            # 回写 scores 的 class_rank/grade_rank (跨库兼容)
+            rank_result = await db.execute(text("""
+                SELECT student_id, class_rank, grade_rank
+                FROM rank_snapshots
+                WHERE exam_id = :eid AND rank_type = 'total'
+            """), {"eid": exam_id})
+            rank_updates = [
+                {"eid": exam_id, "sid": row.student_id, "cr": row.class_rank, "gr": row.grade_rank}
+                for row in rank_result
+            ]
+            if rank_updates:
+                await db.execute(text("""
+                    UPDATE scores SET class_rank = :cr, grade_rank = :gr
+                    WHERE exam_id = :eid AND student_id = :sid
+                """), rank_updates)
+            logger.info(f"[RankCalc] Exam {exam_id}: class/grade ranks written back")
 
-        # ===== 3. 语数外排名 =====
-        ywys_list = ",".join(str(i) for i in YWYS_IDS)
-        await db.execute(text(f"""
-            INSERT INTO rank_snapshots (exam_id, student_id, total_score,
-                grade_rank, class_rank, rank_type, calc_at)
-            SELECT :eid, student_id, SUM(total_score),
-                ROW_NUMBER() OVER (ORDER BY SUM(total_score) DESC),
-                ROW_NUMBER() OVER (PARTITION BY s.class_id ORDER BY SUM(total_score) DESC),
-                'yuwai', :now
-            FROM scores JOIN students s ON scores.student_id = s.id
-            WHERE scores.exam_id = :eid AND scores.subject_id IN ({ywys_list})
-            GROUP BY student_id, s.class_id
-        """), {"eid": exam_id, "now": now_str})
+            # ===== 2. 单科排名 =====
+            await db.execute(text("""
+                INSERT INTO rank_snapshots (exam_id, student_id, subject_id, total_score,
+                    grade_rank, class_rank, rank_type, calc_at)
+                SELECT :eid, student_id, subject_id, total_score,
+                    ROW_NUMBER() OVER (PARTITION BY subject_id ORDER BY total_score DESC),
+                    ROW_NUMBER() OVER (PARTITION BY subject_id, s.class_id ORDER BY total_score DESC),
+                    'subject', :now
+                FROM scores JOIN students s ON scores.student_id = s.id
+                WHERE scores.exam_id = :eid
+            """), {"eid": exam_id, "now": now_str})
+            logger.info(f"[RankCalc] Exam {exam_id}: subject ranks calculated")
 
-        # ===== 4. 7选3 (按学生选科计算) =====
-        await _calc_top3_python(db, exam_id, now_str)
+            # ===== 3. 语数外排名 =====
+            ywys_list = ",".join(str(i) for i in YWYS_IDS)
+            await db.execute(text(f"""
+                INSERT INTO rank_snapshots (exam_id, student_id, total_score,
+                    grade_rank, class_rank, rank_type, calc_at)
+                SELECT :eid, student_id, SUM(total_score),
+                    ROW_NUMBER() OVER (ORDER BY SUM(total_score) DESC),
+                    ROW_NUMBER() OVER (PARTITION BY s.class_id ORDER BY SUM(total_score) DESC),
+                    'yuwai', :now
+                FROM scores JOIN students s ON scores.student_id = s.id
+                WHERE scores.exam_id = :eid AND scores.subject_id IN ({ywys_list})
+                GROUP BY student_id, s.class_id
+            """), {"eid": exam_id, "now": now_str})
+            logger.info(f"[RankCalc] Exam {exam_id}: yuwai ranks calculated")
 
-        await db.commit()
+            # ===== 4. 7选3 (按学生选科计算) =====
+            try:
+                await _calc_top3_python(db, exam_id, now_str)
+                logger.info(f"[RankCalc] Exam {exam_id}: top3 ranks calculated")
+            except Exception as e:
+                logger.error(f"[RankCalc] Exam {exam_id}: top3 ranks failed: {e}", exc_info=True)
+                # 即使 top3 失败，也继续提交其他排名
 
-    logger.info(f"Rank calculation completed for exam_id={exam_id}")
+            await db.commit()
+            logger.info(f"[RankCalc] Exam {exam_id}: all ranks committed")
+
+        except Exception as e:
+            logger.error(f"[RankCalc] Exam {exam_id}: rank calculation failed: {e}", exc_info=True)
+            await db.rollback()
+            raise
 
 
 async def _calc_top3_python(db, exam_id: int, now_str: str):

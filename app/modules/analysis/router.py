@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.core.security import get_current_user, require_role
 from app.core.response import success_response, paginated_response
+from app.core.exceptions import ValidationException
 from app.modules.analysis import service
 
 router = APIRouter(prefix="/api/analysis", tags=["统计分析"])
@@ -25,12 +26,16 @@ async def class_cutoff_stats(
     ), {"eid": exam_id})
     cutoffs: dict[str, float] = {row[0]: float(row[1]) for row in result.fetchall()}
 
-    # 获取该考试对应年级的班级(无结果则显示全部)
+    # 获取该考试有学生参与的班级（基于排名快照中的学生）
     result = await db.execute(text(
-        "SELECT id, name FROM classes WHERE grade_id = (SELECT grade_id FROM exams WHERE id=:eid)"
-        " ORDER BY id"), {"eid": exam_id})
+        "SELECT DISTINCT c.id, c.name FROM classes c"
+        " JOIN students s ON s.class_id = c.id"
+        " JOIN rank_snapshots rs ON rs.student_id = s.id"
+        " WHERE rs.exam_id = :eid AND rs.rank_type = 'total'"
+        " ORDER BY c.id"
+    ), {"eid": exam_id})
     classes = [{"id": row[0], "name": row[1]} for row in result.fetchall()]
-    if not classes:  # fallback
+    if not classes:  # fallback: 查询所有班级
         result = await db.execute(text("SELECT id, name FROM classes ORDER BY id"))
         classes = [{"id": row[0], "name": row[1]} for row in result.fetchall()]
 
@@ -118,11 +123,14 @@ async def multi_exam_compare(
         text(f"SELECT id, name FROM exams WHERE id IN ({ids_str}) ORDER BY exam_date"))
     exams = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
 
-    # 取第一个考试的年级来筛选班级(无结果则显示全部)
-    first_eid = ids[0]
+    # 获取所有考试中有学生参与的班级（基于排名快照中的学生）
     result = await db.execute(text(
-        "SELECT id, name FROM classes WHERE grade_id = (SELECT grade_id FROM exams WHERE id=:eid)"
-        " ORDER BY id"), {"eid": first_eid})
+        f"SELECT DISTINCT c.id, c.name FROM classes c"
+        f" JOIN students s ON s.class_id = c.id"
+        f" JOIN rank_snapshots rs ON rs.student_id = s.id"
+        f" WHERE rs.exam_id IN ({ids_str}) AND rs.rank_type = 'total'"
+        f" ORDER BY c.id"
+    ))
     classes = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
     if not classes:
         result = await db.execute(text("SELECT id, name FROM classes ORDER BY id"))
@@ -254,3 +262,22 @@ async def get_ranks(
         db, exam_id, page, per_page, class_id, rank_type
     )
     return paginated_response(items=rows, total=total, page=page, per_page=per_page)
+
+
+@router.post("/recalc-ranks")
+async def recalculate_ranks(
+    exam_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    """重新计算指定考试的排名（管理员专用）"""
+    from app.modules.scores.tasks import calculate_ranks, calculate_ranks_async
+    try:
+        calculate_ranks.delay(exam_id)
+        return success_response(message=f"排名计算任务已提交，考试ID: {exam_id}")
+    except Exception:
+        try:
+            await calculate_ranks_async(exam_id)
+            return success_response(message=f"排名计算完成，考试ID: {exam_id}")
+        except Exception as e:
+            raise ValidationException(f"排名计算失败: {str(e)}")

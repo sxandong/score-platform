@@ -252,16 +252,20 @@ async def seed_demo_classes_and_students(db: AsyncSession) -> None:
     if result.scalar_one_or_none() is not None:
         return
 
-    # 年级 ID
-    grade_1 = await db.execute(select(Grade).where(Grade.name == "高一"))
-    grade_2 = await db.execute(select(Grade).where(Grade.name == "高二"))
-    grade_3 = await db.execute(select(Grade).where(Grade.name == "高三"))
+    # 年级 ID - 立即提取实际值，避免 result 对象被关闭
+    grade_1_result = await db.execute(select(Grade).where(Grade.name == "高一"))
+    grade_2_result = await db.execute(select(Grade).where(Grade.name == "高二"))
+    grade_3_result = await db.execute(select(Grade).where(Grade.name == "高三"))
+    
+    grade_1_id = grade_1_result.scalar_one().id
+    grade_2_id = grade_2_result.scalar_one().id
+    grade_3_id = grade_3_result.scalar_one().id
 
     classes_data = [
-        ("高一(1)班", grade_1.scalar_one().id),
-        ("高一(2)班", grade_1.scalar_one().id),
-        ("高二(1)班", grade_2.scalar_one().id),
-        ("高三(1)班", grade_3.scalar_one().id),
+        ("高一(1)班", grade_1_id),
+        ("高一(2)班", grade_1_id),
+        ("高二(1)班", grade_2_id),
+        ("高三(1)班", grade_3_id),
     ]
     class_objects = {}
     for name, grade_id in classes_data:

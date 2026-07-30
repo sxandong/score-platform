@@ -26,8 +26,8 @@
 
       <h4 style="margin:20px 0 8px">各科优秀/良好线</h4>
       <div style="overflow-x:auto">
-      <el-table :data="subjCutoffs" border stripe size="small">
-        <el-table-column prop="subject" label="科目" width="80" fixed />
+      <el-table :data="subjCutoffs" border stripe size="small" style="max-width:520px">
+        <el-table-column prop="subject" label="科目" width="80"  />
         <el-table-column label="优秀线">
           <template #default="{row}">
             <el-input-number v-model="row.excellent" :min="0" :max="150" :precision="1"

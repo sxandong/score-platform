@@ -442,14 +442,64 @@ async def batch_import_students(
     # 7选3科目列表
     ELEC_SUBJS = ['政治', '历史', '地理', '物理', '化学', '生物', '技术']
 
-    # 预加载班级映射 (名称→ID)
+    # ===== 预检查1: Excel格式验证 =====
+    required_cols = ["学籍号", "姓名", "班级"]
+    missing_cols = [c for c in required_cols if c not in df.columns]
+    if missing_cols:
+        raise ValidationException(
+            f"Excel格式不正确，缺少必需列: {', '.join(missing_cols)}。"
+            f"要求列: 学籍号, 姓名, 班级, 以及7门选考科目列(政治/历史/地理/物理/化学/生物/技术, 用1/0标记)"
+        )
+
+    # 检查选科列是否存在
+    has_elective_cols = any(s in df.columns for s in ELEC_SUBJS)
+    if not has_elective_cols:
+        raise ValidationException(
+            f"Excel缺少选科列。必须包含以下7列: {', '.join(ELEC_SUBJS)}，用1表示选中，0表示未选中"
+        )
+
+    # 检查入学年份列是否存在
+    has_enroll_col = "入学年份" in df.columns or "enrollment_year" in df.columns
+    if not has_enroll_col:
+        raise ValidationException(
+            "Excel缺少入学年份列。必须包含【入学年份】列，填写学生的入学年份(如2026)"
+        )
+
+    # ===== 预检查2: 年级是否已创建 =====
+    grade_result = await db.execute(select(Grade))
+    grades = grade_result.scalars().all()
+    if not grades:
+        raise ValidationException("系统中尚未创建任何年级，请先在【年级管理】中创建年级和班级后再导入学生")
+
+    # ===== 预检查3: 班级是否已创建 =====
     result = await db.execute(select(Class))
+    all_classes = result.scalars().all()
     class_by_name: dict[str, int] = {}
     class_by_id: dict[int, int] = {}
-    for c in result.scalars().all():
+    for c in all_classes:
         class_by_name[c.name] = c.id
         class_by_id[c.id] = c.id
 
+    if not all_classes:
+        raise ValidationException("系统中尚未创建任何班级，请先在【年级管理】中创建班级后再导入学生")
+
+    # ===== 预检查4: Excel中的班级是否与数据库一致 =====
+    excel_classes = set()
+    for idx, row in df.iterrows():
+        cls_val = row.get("班级", row.get("班级名称", row.get("class_name",
+                   row.get("班级ID", row.get("class_id", "")))))
+        cls_str = str(cls_val).strip() if pd.notna(cls_val) else ""
+        if cls_str:
+            excel_classes.add(cls_str)
+
+    not_found_classes = [c for c in excel_classes if c not in class_by_name and not (c.isdigit() and int(c) in class_by_id)]
+    if not_found_classes:
+        raise ValidationException(
+            f"Excel中的班级在系统中不存在: {', '.join(not_found_classes)}。"
+            f"系统中现有班级: {', '.join(class_by_name.keys())}。请先创建对应班级或修正Excel中的班级名称"
+        )
+
+    # ===== 逐行导入 =====
     created, updated, skipped, errors = 0, 0, 0, []
     for idx, row in df.iterrows():
         sno_val = row.get("学籍号", row.get("学号", row.get("student_no", "")))
@@ -482,14 +532,13 @@ async def batch_import_students(
             if val is not None and int(val) == 1:
                 selected.append(subj)
         if len(selected) != 3:
-            errors.append({"row": idx + 2, "reason": f"选科数量={len(selected)}, 必须恰好3门"})
+            errors.append({"row": idx + 2, "reason": f"选科数量={len(selected)}, 必须恰好3门(7选3)"})
             skipped += 1; continue
         electives_str = ','.join(selected)
 
         # 判断Excel中是否包含特定列
         cols_set = set(df.columns)
         has_enroll_col = "入学年份" in cols_set or "enrollment_year" in cols_set
-        has_elective_cols = any(s in cols_set for s in ELEC_SUBJS)
         enroll_year = 2026
         if has_enroll_col:
             val = row.get("入学年份", row.get("enrollment_year"))
@@ -501,26 +550,19 @@ async def batch_import_students(
         if existing:
             existing.name = name
             existing.class_id = cid
-            if has_elective_cols:
-                if len(selected) != 3:
-                    errors.append({"row": idx + 2, "reason": f"选科数量={len(selected)}, 必须恰好3门"})
-                    skipped += 1; continue
-                existing.electives = electives_str
+            existing.electives = electives_str
             if has_enroll_col and pd.notna(row.get("入学年份", row.get("enrollment_year", float("nan")))):
                 existing.enrollment_year = enroll_year
             updated += 1
         else:
-            if has_elective_cols and len(selected) != 3:
-                errors.append({"row": idx + 2, "reason": f"选科数量={len(selected)}, 必须恰好3门"})
-                skipped += 1; continue
             db.add(Student(student_no=sno, name=name, class_id=cid,
-                          electives=electives_str if has_elective_cols else "",
+                          electives=electives_str,
                           enrollment_year=enroll_year if has_enroll_col else 2026))
             created += 1
 
     await db.flush()
     return success_response(data={
-        "created": created, "updated": updated, "skipped": skipped, "errors": errors[:10],
+        "created": created, "updated": updated, "skipped": skipped, "errors": errors[:20],
     }, message=f"导入完成: 新增{created}, 更新{updated}, 跳过{skipped}")
 
 

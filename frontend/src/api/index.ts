@@ -5,7 +5,7 @@ import type { ApiResponse } from '@/types/api'
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 15000,
+  timeout: 120000,
 })
 
 api.interceptors.request.use((config) => {
@@ -63,3 +63,4 @@ api.interceptors.response.use(
 )
 
 export default api
+export { api as axiosInstance }

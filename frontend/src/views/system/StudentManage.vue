@@ -198,7 +198,19 @@ async function handleImport(file: File) {
     const r = await api.post('/students/batch', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
-    ElMessage.success(r.message); loadStudents()
+    // 显示导入结果详情
+    const d = r.data
+    if (d && d.errors && d.errors.length > 0) {
+      const errLines = d.errors.map((e: any) => `第${e.row}行: ${e.reason}`).join('\n')
+      ElMessageBox.alert(
+        `${r.message}\n\n错误详情:\n${errLines}`,
+        '导入结果',
+        { type: 'warning', dangerouslyUseHTMLString: false }
+      )
+    } else {
+      ElMessage.success(r.message)
+    }
+    loadStudents()
   } catch (e: any) { ElMessage.error(e.message) }
   return false
 }

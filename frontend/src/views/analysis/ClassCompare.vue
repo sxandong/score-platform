@@ -8,6 +8,11 @@
       <el-form-item label="考试"><el-select v-model="examId" placeholder="选择考试" style="width:300px" @change="loadData">
         <el-option v-for="e in filteredExams" :key="e.id" :label="e.name" :value="e.id" /></el-select>
       </el-form-item>
+      <el-form-item>
+        <el-button type="warning" @click="recalcRanks" :loading="recalcLoading" :disabled="!examId">
+          🔄 重新计算排名
+        </el-button>
+      </el-form-item>
     </el-form>
 
     <el-card v-if="examId && compareData.length" v-loading="loading">
@@ -70,6 +75,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 
 const exams = ref([]); const examId = ref<number | null>(null)
@@ -80,6 +86,7 @@ function onYearChange() { examId.value = null; compareData.value = []; cutoffs.v
 const compareData = ref([]); const cutoffs = ref<Record<string,number>>({})
 const subjStats = ref<Record<string, any[]>>({})
 const loading = ref(false)
+const recalcLoading = ref(false)
 
 const transposed = computed(() => {
   const cls = compareData.value
@@ -144,6 +151,27 @@ async function loadData() {
     cutoffs.value = r.data?.cutoffs || {}
     subjStats.value = r.data?.subj_stats || {}
   } catch {} finally { loading.value = false }
+}
+
+async function recalcRanks() {
+  if (!examId.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确定要重新计算考试"${exams.value.find((e:any) => e.id === examId.value)?.name}"的排名吗？`,
+      '确认',
+      { type: 'warning' }
+    )
+    recalcLoading.value = true
+    const r = await api.post('/analysis/recalc-ranks', null, { params: { exam_id: examId.value } })
+    ElMessage.success(r.message || '排名计算完成')
+    await loadData()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e?.message || '排名计算失败')
+    }
+  } finally {
+    recalcLoading.value = false
+  }
 }
 
 function numClass(v: number, label: string): string {
