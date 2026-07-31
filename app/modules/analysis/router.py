@@ -281,3 +281,82 @@ async def recalculate_ranks(
             return success_response(message=f"排名计算完成，考试ID: {exam_id}")
         except Exception as e:
             raise ValidationException(f"排名计算失败: {str(e)}")
+
+
+@router.get("/student-rank-stats")
+async def student_rank_stats(
+    enrollment_year: int,
+    exam_ids: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin", "director", "teacher")),
+):
+    """学生历次考试总分排名统计"""
+    from sqlalchemy import text
+
+    ids = [int(x.strip()) for x in exam_ids.split(",") if x.strip()]
+    if len(ids) < 2:
+        raise ValidationException("至少选择2次考试")
+
+    ids_str = ",".join(str(i) for i in ids)
+
+    # 获取选中的考试信息（按考试日期排序）
+    result = await db.execute(text(
+        f"SELECT id, name FROM exams WHERE id IN ({ids_str}) ORDER BY exam_date"
+    ))
+    exams = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
+    if len(exams) < 2:
+        raise ValidationException("选中的有效考试不足2次")
+
+    # 查询该入学年份的学生在选中考试中的总分排名
+    result = await db.execute(text(
+        f"""SELECT s.id, s.student_no, s.name, s.class_id, c.name as class_name,
+               rs.exam_id, rs.grade_rank
+           FROM students s
+           JOIN rank_snapshots rs ON rs.student_id = s.id
+           JOIN classes c ON s.class_id = c.id
+           WHERE s.enrollment_year = :yr
+             AND rs.exam_id IN ({ids_str})
+             AND rs.rank_type = 'total'
+           ORDER BY s.id"""
+    ), {"yr": enrollment_year})
+    rows = result.fetchall()
+
+    # 按学生聚合
+    students_map: dict[int, dict] = {}
+    for row in rows:
+        sid = row[0]
+        if sid not in students_map:
+            students_map[sid] = {
+                "student_no": row[1],
+                "name": row[2],
+                "class_name": row[4],
+                "ranks": {},  # exam_id -> grade_rank
+            }
+        students_map[sid]["ranks"][row[5]] = row[6]
+
+    # 构建结果，计算平均排名、最高排名、最低排名
+    result_list = []
+    for sid, info in students_map.items():
+        ranks = list(info["ranks"].values())
+        if not ranks:
+            continue
+        avg_rank = round(sum(ranks) / len(ranks), 0)
+        best_rank = min(ranks)   # 排名数字越小越高
+        worst_rank = max(ranks)  # 排名数字越大越低
+        result_list.append({
+            "student_no": info["student_no"],
+            "name": info["name"],
+            "class_name": info["class_name"],
+            "ranks": info["ranks"],
+            "avg_rank": avg_rank,
+            "best_rank": best_rank,
+            "worst_rank": worst_rank,
+        })
+
+    # 按平均排名升序排列
+    result_list.sort(key=lambda x: x["avg_rank"])
+
+    return success_response(data={
+        "exams": exams,
+        "students": result_list,
+    })

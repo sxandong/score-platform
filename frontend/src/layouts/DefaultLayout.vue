@@ -34,10 +34,11 @@
         </el-sub-menu>
         <el-sub-menu v-if="auth.hasPermission('analysis:view')" index="analysis">
           <template #title><el-icon><TrendCharts /></el-icon><span>统计分析</span></template>
-          <el-menu-item index="/analysis/class-compare">班级统计</el-menu-item>
-          <el-menu-item index="/analysis/multi-exam-compare">班级对比</el-menu-item>
-          <el-menu-item index="/analysis/score-distribution">分数段统计</el-menu-item>
-          <el-menu-item index="/analysis/student-trend">成绩趋势</el-menu-item>
+          <el-menu-item index="/analysis/class-compare">班级达线统计</el-menu-item>
+          <el-menu-item index="/analysis/multi-exam-compare">班级达线对比</el-menu-item>
+          <el-menu-item index="/analysis/score-distribution">各学科分数段</el-menu-item>
+          <el-menu-item index="/analysis/student-rank-stats">学生排名统计</el-menu-item>
+          <el-menu-item index="/analysis/student-trend">学校三线趋势</el-menu-item>
         </el-sub-menu>
         <el-menu-item v-if="auth.hasPermission('report:export')" index="/reports">
           <el-icon><Download /></el-icon><span>报表导出</span>

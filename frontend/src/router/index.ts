@@ -112,6 +112,12 @@ const router = createRouter({
           meta: { title: '成绩趋势' },
         },
         {
+          path: 'analysis/student-rank-stats',
+          name: 'student-rank-stats',
+          component: () => import('@/views/analysis/StudentRankStats.vue'),
+          meta: { title: '学生排名统计', roles: ['admin', 'director', 'teacher'] },
+        },
+        {
           path: 'reports',
           name: 'reports',
           component: () => import('@/views/reports/ReportExport.vue'),
