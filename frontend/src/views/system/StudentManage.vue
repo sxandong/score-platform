@@ -25,7 +25,7 @@
       <el-col :span="2"><el-button type="primary" plain @click="showReassign=true">重新分班</el-button></el-col>
     </el-row>
 
-    <el-table :data="students" border stripe v-loading="loading" @selection-change="(v:any)=>selected=v">
+    <el-table :data="students" border stripe v-loading="loading" @selection-change="(v:any)=>selected=v" size="small">
       <el-table-column type="selection" width="40" />
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="student_no" label="学籍号" width="130" />
@@ -51,7 +51,7 @@
       </el-table-column>
     </el-table>
 
-    <el-pagination :current-page="page" :total="total" :page-size="50"
+    <el-pagination :current-page="page" :total="total" :page-size="50" size="small"
       layout="total, prev, pager, next" @current-change="(p:number)=>{page=p;loadStudents()}"
       style="margin-top:16px;justify-content:flex-end" />
 
@@ -255,3 +255,8 @@ async function doReassign() {
 
 onMounted(() => { loadClasses(); loadStudents() })
 </script>
+
+<style scoped>
+:deep(.el-table th.el-table__cell) { background: linear-gradient(180deg,#f0f5fa,#e8f0fe); color:var(--edu-blue); font-weight:600; text-align:center; }
+:deep(.el-table td) { text-align:center; }
+</style>

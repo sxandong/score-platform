@@ -49,12 +49,13 @@
       </div>
 
       <div class="scroll-wrap">
-        <el-table :data="tableData" border stripe size="small"
+        <el-table :data="tableData" border stripe size="small" max-height="600"
           :cell-style="{textAlign:'center'}" :header-cell-style="{textAlign:'center'}"
           :row-class-name="rowClassName">
-          <el-table-column type="index" label="序号" width="60" fixed>
+          <el-table-column type="index" label="排名" width="60" fixed>
             <template #default="{row, $index}">
               <span v-if="$index < 3" :class="['medal', `medal-${$index + 1}`]">{{ $index + 1 }}</span>
+              <span v-else-if="$index < 10" :class="['medal', 'medal-4']">{{ $index + 1 }}</span>
               <span v-else>{{ $index + 1 }}</span>
             </template>
           </el-table-column>
@@ -227,10 +228,11 @@ function rowClassName({ $index }: { $index: number }) {
 .medal-1 { background: linear-gradient(135deg, #ffd700, #ffb700); box-shadow: 0 2px 6px rgba(255,183,0,.4); }
 .medal-2 { background: linear-gradient(135deg, #c0c0c0, #a8a8a8); box-shadow: 0 2px 6px rgba(168,168,168,.4); }
 .medal-3 { background: linear-gradient(135deg, #cd7f32, #b8732e); box-shadow: 0 2px 6px rgba(184,115,46,.4); }
+.medal-4 { background: linear-gradient(135deg, #02ebfc, #02ebfc); box-shadow: 0 2px 6px rgba(195, 246, 192, 0.4); }
 
 /* 排名徽章 */
 .rank-badge {
-  display: inline-block; min-width: 36px; padding: 2px 8px; border-radius: 12px;
+  display: inline-block; min-width: 32px; padding: 3px 8px; border-radius: 18px;
   font-size: 13px; font-weight: 600; color: #fff;
 }
 .rank-top10 { background: #ffd700; color: #fff; font-weight: 700; }

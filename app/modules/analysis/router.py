@@ -360,3 +360,154 @@ async def student_rank_stats(
         "exams": exams,
         "students": result_list,
     })
+
+
+@router.get("/class-subject-compare")
+async def class_subject_compare(
+    enrollment_year: int,
+    exam_ids: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin", "director", "teacher")),
+):
+    """班级学科对比分析"""
+    from sqlalchemy import text
+
+    ids = [int(x.strip()) for x in exam_ids.split(",") if x.strip()]
+    if len(ids) < 2:
+        raise ValidationException("至少选择2次考试")
+
+    ids_str = ",".join(str(i) for i in ids)
+
+    # 获取考试列表（按日期排序，最近的在前）
+    result = await db.execute(text(
+        f"SELECT id, name FROM exams WHERE id IN ({ids_str}) ORDER BY exam_date DESC"
+    ))
+    exams = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
+    if len(exams) < 2:
+        raise ValidationException("选中的有效考试不足2次")
+
+    latest_exam = exams[0]  # 最近的考试
+    other_exams = exams[1:]  # 其他考试
+
+    # 获取班级列表（基于最近考试有学生参与的班级）
+    result = await db.execute(text(
+        f"""SELECT DISTINCT c.id, c.name FROM classes c
+            JOIN students s ON s.class_id = c.id
+            JOIN rank_snapshots rs ON rs.student_id = s.id
+            WHERE s.enrollment_year = :yr
+              AND rs.exam_id = :latest_id
+              AND rs.rank_type = 'total'
+            ORDER BY c.id"""
+    ), {"yr": enrollment_year, "latest_id": latest_exam["id"]})
+    classes = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
+
+    # 获取最近考试的分数线
+    result = await db.execute(text(
+        "SELECT cutoff_type, score FROM score_cutoffs WHERE exam_id = :eid"
+    ), {"eid": latest_exam["id"]})
+    cutoffs = {r[0]: float(r[1]) for r in result.fetchall()}
+
+    special_score = cutoffs.get("special")
+    if not special_score:
+        raise ValidationException("最近的考试未设置特控线")
+
+    # 获取所有学科
+    result = await db.execute(text("SELECT id, name FROM subjects ORDER BY sort_order"))
+    subjects = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
+
+    # === 第一行：最近考试特控线及以上人数 ===
+    special_counts: dict[int, int] = {}
+    result = await db.execute(text(
+        """SELECT s.class_id, COUNT(*)
+           FROM rank_snapshots rs
+           JOIN students s ON rs.student_id = s.id
+           WHERE rs.exam_id = :eid AND rs.rank_type = 'total'
+             AND s.enrollment_year = :yr
+             AND rs.total_score >= :sc
+           GROUP BY s.class_id"""
+    ), {"eid": latest_exam["id"], "yr": enrollment_year, "sc": special_score})
+    for row in result.fetchall():
+        special_counts[row[0]] = row[1]
+
+    # === 各学科数据 ===
+    subject_data = []
+    for subj in subjects:
+        subj_id = subj["id"]
+        subj_name = subj["name"]
+        excellent_key = f"subj_excellent_{subj_name}"
+        excellent_score = cutoffs.get(excellent_key)
+
+        entry = {
+            "subject_id": subj_id,
+            "subject_name": subj_name,
+            "excellent_score": excellent_score,
+            "exam_takers": {},    # class_id -> count (最近考试)
+            "pass_counts": {},    # class_id -> count (最近考试)
+            "effective_counts": {},  # class_id -> count (最近考试)
+            "other_exam_passes": [],  # [{exam_id, exam_name, data: {class_id: count}}]
+        }
+
+        # 最近考试：考试人数、单科上线、单科有效
+        if excellent_score is not None:
+            result = await db.execute(text(
+                """SELECT sc.student_id, s.class_id, rs.total_score, sc.total_score AS subj_score
+                   FROM scores sc
+                   JOIN students s ON sc.student_id = s.id
+                   JOIN rank_snapshots rs ON rs.student_id = s.id
+                     AND rs.exam_id = sc.exam_id AND rs.rank_type = 'total'
+                   WHERE sc.exam_id = :eid AND sc.subject_id = :sid
+                     AND s.enrollment_year = :yr"""
+            ), {"eid": latest_exam["id"], "sid": subj_id, "yr": enrollment_year})
+            rows = result.fetchall()
+
+            takers: dict[int, int] = {}
+            passes: dict[int, int] = {}
+            effectives: dict[int, int] = {}
+            for row in rows:
+                student_id, class_id, total_score, subj_score = row
+                takers[class_id] = takers.get(class_id, 0) + 1
+                if subj_score is not None and subj_score >= excellent_score:
+                    passes[class_id] = passes.get(class_id, 0) + 1
+                    if total_score is not None and total_score >= special_score:
+                        effectives[class_id] = effectives.get(class_id, 0) + 1
+
+            entry["exam_takers"] = takers
+            entry["pass_counts"] = passes
+            entry["effective_counts"] = effectives
+
+        # 其他考试：单科上线人数
+        for oe in other_exams:
+            oe_id = oe["id"]
+            # 获取该考试的学科优秀分数线
+            result = await db.execute(text(
+                "SELECT score FROM score_cutoffs WHERE exam_id = :eid AND cutoff_type = :ct"
+            ), {"eid": oe_id, "ct": excellent_key})
+            row = result.fetchone()
+            oe_excellent = float(row[0]) if row else None
+
+            oe_data = {"exam_id": oe_id, "exam_name": oe["name"], "data": {}}
+            if oe_excellent is not None:
+                result = await db.execute(text(
+                    """SELECT s.class_id, COUNT(*)
+                       FROM scores sc
+                       JOIN students s ON sc.student_id = s.id
+                       WHERE sc.exam_id = :eid AND sc.subject_id = :sid
+                         AND s.enrollment_year = :yr
+                         AND sc.total_score >= :esc
+                       GROUP BY s.class_id"""
+                ), {"eid": oe_id, "sid": subj_id, "yr": enrollment_year, "esc": oe_excellent})
+                for r in result.fetchall():
+                    oe_data["data"][r[0]] = r[1]
+
+            entry["other_exam_passes"].append(oe_data)
+
+        subject_data.append(entry)
+
+    return success_response(data={
+        "latest_exam": latest_exam,
+        "other_exams": other_exams,
+        "special_score": special_score,
+        "classes": classes,
+        "special_counts": special_counts,
+        "subjects": subject_data,
+    })

@@ -17,9 +17,9 @@
         <el-card>
           <template #header><span style="font-weight:600">学生选科列表</span></template>
           <el-table :data="students" border stripe  v-loading="loading"
-            max-height="550">
-            <el-table-column prop="student_no" label="学籍号" width="130" />
-            <el-table-column prop="name" label="姓名" width="100" />
+            max-height="550" size="small">
+            <el-table-column prop="student_no" label="学籍号" width="140" />
+            <el-table-column prop="name" label="姓名" width="140" />  
             <el-table-column prop="enrollment_year" label="入学年份" width="100" />
             <el-table-column prop="class_name" label="班级" width="120" />
             <el-table-column label="选科" min-width="150">
@@ -37,7 +37,7 @@
                 </template>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="100">
+            <el-table-column label="操作" width="120">
               <template #default="{row}">
                 <template v-if="row._editing">
                   <el-button size="small" type="primary" @click="saveOne(row)">保存</el-button>
@@ -174,3 +174,8 @@ async function saveOne(row: any) {
 }
 
 </script>
+
+<style scoped>
+:deep(.el-table th.el-table__cell) { background: linear-gradient(180deg,#f0f5fa,#e8f0fe); color:var(--edu-blue); font-weight:600; text-align:center; }
+:deep(.el-table td) { text-align:center; }
+</style>

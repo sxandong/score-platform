@@ -33,6 +33,19 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
+  async function fetchUser(): Promise<void> {
+    if (!token.value) return
+    try {
+      const res = await api.get<unknown, ApiResponse<UserInfo>>('/auth/me')
+      user.value = res.data
+      permissions.value = res.data.permissions || []
+      roles.value = res.data.roles || []
+      isLoggedIn.value = true
+    } catch {
+      logout()
+    }
+  }
+
   async function changePassword(oldPassword: string, newPassword: string): Promise<void> {
     await api.post('/auth/change-password', { old_password: oldPassword, new_password: newPassword })
     if (user.value) {
@@ -61,6 +74,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user, token, refreshToken, permissions, roles, isLoggedIn, mustChangePassword,
-    login, changePassword, logout, hasRole, hasPermission,
+    login, fetchUser, changePassword, logout, hasRole, hasPermission,
   }
 })

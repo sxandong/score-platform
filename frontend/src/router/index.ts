@@ -118,6 +118,12 @@ const router = createRouter({
           meta: { title: '学生排名统计', roles: ['admin', 'director', 'teacher'] },
         },
         {
+          path: 'analysis/class-subject-compare',
+          name: 'class-subject-compare',
+          component: () => import('@/views/analysis/ClassSubjectCompare.vue'),
+          meta: { title: '班级学科对比', roles: ['admin', 'director', 'teacher'] },
+        },
+        {
           path: 'reports',
           name: 'reports',
           component: () => import('@/views/reports/ReportExport.vue'),
@@ -140,13 +146,23 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, _from, next) => {
+let authInitialized = false
+
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
   if (to.meta.public) {
     if (authStore.isLoggedIn && to.name === 'login') return next('/dashboard')
     return next()
   }
   if (!authStore.isLoggedIn) return next('/login')
+
+  // 页面刷新后恢复用户信息（roles/permissions）
+  if (!authInitialized && authStore.isLoggedIn) {
+    authInitialized = true
+    await authStore.fetchUser()
+    if (!authStore.isLoggedIn) return next('/login')
+  }
+
   if (authStore.mustChangePassword && to.name !== 'change-password') {
     return next('/change-password')
   }

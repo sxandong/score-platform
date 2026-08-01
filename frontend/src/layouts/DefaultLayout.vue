@@ -27,7 +27,7 @@
         </el-menu-item>
         <el-sub-menu v-if="auth.hasPermission('score:create') || auth.hasPermission('score:read')" index="scores">
           <template #title><el-icon><Edit /></el-icon><span>成绩管理</span></template>
-          <el-menu-item v-if="auth.hasPermission('score:create')" index="/scores/entry">成绩录入</el-menu-item>
+          <el-menu-item v-if="auth.hasPermission('score:create')" index="/scores/entry">录入修改</el-menu-item>
           <el-menu-item v-if="auth.hasPermission('score:create')" index="/scores/import">批量导入</el-menu-item>
           <el-menu-item index="/scores/cutoffs">分数线设置</el-menu-item>
           <el-menu-item v-if="auth.hasPermission('score:read')" index="/scores/query">成绩查询</el-menu-item>
@@ -39,6 +39,7 @@
           <el-menu-item index="/analysis/score-distribution">各学科分数段</el-menu-item>
           <el-menu-item index="/analysis/student-rank-stats">学生排名统计</el-menu-item>
           <el-menu-item index="/analysis/student-trend">学校三线趋势</el-menu-item>
+          <el-menu-item index="/analysis/class-subject-compare">班级学科对比</el-menu-item>
         </el-sub-menu>
         <el-menu-item v-if="auth.hasPermission('report:export')" index="/reports">
           <el-icon><Download /></el-icon><span>报表导出</span>
