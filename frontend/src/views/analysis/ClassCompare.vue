@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="page-header"><h3>班级人数统计</h3><p>各班级达线人数分布</p></div>
+    <div class="page-header"><h3>班级达线人数统计</h3><p>各班级达线人数分布</p></div>
 
     <el-form :inline="true">
       <el-form-item label="入学年份"><el-select v-model="filterYear" style="width:120px" @change="onYearChange">
@@ -21,7 +21,7 @@
         <el-table-column prop="label" label="指标" width="140" fixed/>
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="90">
           <template #default="{row}">
-            <span :class="numClass(row[c.id], row.label)">{{ row[c.id] !== undefined ? row[c.id] : '-' }}</span>
+            <span v-if="row[c.id] !== 0" :class="numClass(row[c.id], row.label)">{{ row[c.id] !== undefined ? row[c.id] : '-' }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -40,7 +40,7 @@
         <el-table-column prop="total" label="总人数" width="75" fixed/>
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="100">
           <template #default="{row}">
-            <span :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>
+            <span v-if="row[c.id]?.count !== 0" :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="total" label="总人数" width="75" />
@@ -61,7 +61,7 @@
         <el-table-column prop="total" label="总人数" width="75" fixed/>
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="100">
           <template #default="{row}">
-            <span :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>
+            <span v-if="row[c.id]?.count !== 0" :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="total" label="总人数" width="75" />

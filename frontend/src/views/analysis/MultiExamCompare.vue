@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="page-header"><h3>班级对比分析</h3><p>多考试各班达线人数对比</p></div>
+    <div class="page-header"><h3>班级达线人数对比分析</h3><p>多考试各班达线人数对比</p></div>
 
     <el-form :inline="true">
       <el-form-item label="入学年份"><el-select v-model="filterYear" style="width:120px" @change="onYearChange">
@@ -20,7 +20,7 @@
         <el-table-column prop="typeName" label="指标" width="90" fixed />
         <el-table-column prop="totalCount" label="总人数" width="75" fixed />
         <el-table-column v-for="c in compareData.classes" :key="c.id" :label="c.name" width="85">
-          <template #default="{row}"><span :class="numClass(row[c.id], row.typeName)">{{ row[c.id]||0 }}</span></template>
+          <template #default="{row}"><span v-if="row[c.id] !== 0" :class="numClass(row[c.id], row.typeName)">{{ row[c.id] }}</span></template>
         </el-table-column>
       </el-table>
       </div>

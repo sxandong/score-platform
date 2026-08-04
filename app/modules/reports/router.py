@@ -34,6 +34,9 @@ async def student_report(
         return JSONResponse({"code": 404, "message": "No scores"})
 
     for e in exams:
+        # 使用 student_trend 返回的字段名：yuwai_total 和 yuwai_rank
+        e["yws_total"] = e.get("yuwai_total", "") or ""
+        e["t3_total"] = e.get("top3_total", "") or ""
         for rt, key in [("yuwai", "yws_rank"), ("top3", "top3_rank")]:
             r2 = await db.execute(
                 select(RankSnapshot.grade_rank).where(
@@ -67,8 +70,7 @@ async def student_report(
     header_cells = "".join(f"<th>{sn}</th>" for sn in subj_names)
 
     # Chart data
-
-    chart_labels = [(e["exam_name"] or "")[:12] for e in sorted_exams]
+    chart_labels = [(e["exam_name"] or "")[:7] for e in sorted_exams]
 
     # subject rank data and student counts
     from app.models.exam import Score
@@ -244,6 +246,8 @@ async def class_report(
             continue
 
         for e in exams:
+            e["yws_total"] = e.get("yuwai_total", "") or ""
+            e["t3_total"] = e.get("top3_total", "") or ""
             for rt, key in [("yuwai", "yws_rank"), ("top3", "top3_rank")]:
                 r2 = await db.execute(
                     select(RankSnapshot.grade_rank).where(
@@ -276,7 +280,7 @@ async def class_report(
 
         # Chart data for this student
 
-        clabels = [(e["exam_name"] or "")[:12] for e in sorted_exams]
+        clabels = [(e["exam_name"] or "")[:7] for e in sorted_exams]
         sranks = {}; scounts = {}
         for e in sorted_exams:
             eid = e["exam_id"]

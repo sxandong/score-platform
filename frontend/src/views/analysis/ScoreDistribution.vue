@@ -16,10 +16,14 @@
       <h4 style="margin:0 0 8px;font-size:14px;color:var(--tx-secondary)">累计人数</h4>
       <div style="overflow-x:auto;margin-bottom:20px">
       <el-table :data="tableData" border stripe size="small" :cell-style="{textAlign:'center'}">
-        <el-table-column prop="subject" label="科目" width="90" fixed />
-        <el-table-column v-for="t in thresholds" :key="'n'+t" :label="'≥'+t" width="86">
+        <el-table-column prop="subject" label="科目" width="90" fixed>
           <template #default="{row}">
-            <span :class="countClass(row['t_'+t])">{{ row['t_'+t] || 0 }}</span>
+            <span style="font-weight:700;color:var(--edu-blue)">{{ row.subject }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column v-for="t in thresholds" :key="'n'+t" :label="'≥'+t" width="80">
+          <template #default="{row}">
+            <span v-if="row['t_'+t] !== 0" :class="countClass(row['t_'+t])">{{ row['t_'+t] }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -28,10 +32,14 @@
       <h4 style="margin:0 0 8px;font-size:14px;color:var(--tx-secondary)">比例 (%)</h4>
       <div style="overflow-x:auto">
       <el-table :data="tableData" border stripe size="small" :cell-style="{textAlign:'center'}">
-        <el-table-column prop="subject" label="科目" width="90" fixed />
-        <el-table-column v-for="t in thresholds" :key="'p'+t" :label="'≥'+t" width="86">
+        <el-table-column prop="subject" label="科目" width="90" fixed>
           <template #default="{row}">
-            <span :class="pctClass(row['p_'+t])">{{ row['p_'+t]?.toFixed(1) || '-' }}</span>
+            <span style="font-weight:700;color:var(--edu-blue)">{{ row.subject }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column v-for="t in thresholds" :key="'p'+t" :label="'≥'+t" width="80">
+          <template #default="{row}">
+            <span v-if="row['p_'+t] !== 0" :class="pctClass(row['p_'+t])">{{ row['p_'+t]?.toFixed(1) }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -105,11 +113,11 @@ function pctClass(v: number): string {
 <style scoped>
 :deep(.el-table) { border-radius:8px; overflow:hidden; }
 :deep(.el-table th.el-table__cell) { background: linear-gradient(180deg,#f0f5fa,#e8f0fe); color:var(--edu-blue); font-weight:600; text-align:center; font-size:12px; }
-:deep(.el-table td) { text-align:center; }
+:deep(.el-table td) { text-align:center; color:#000; }
 :deep(.el-table .el-table__row:hover > td) { background:#ecf5ff !important; }
 :deep(.el-table .el-table__row:nth-child(even) > td) { background:#fafcfd; }
 :deep(.el-table .el-table__row:nth-child(odd) > td) { background:#ffffff; }
-.count-high { color:var(--edu-green); font-weight:700; }
-.count-mid { color:var(--edu-gold); font-weight:600; }
-.count-low { color:var(--tx-secondary); }
+.count-high { color:#666; }
+.count-mid { color:#666; }
+.count-low { color:#666; }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="page-header"><h3>班级学科对比</h3><p>各班级学科上线及有效人数对比分析</p></div>
+    <div class="page-header"><h3>班级学科达线人数对比</h3><p>各班级学科上线及有效人数对比分析</p></div>
 
     <el-form :inline="true">
       <el-form-item label="入学年份">
