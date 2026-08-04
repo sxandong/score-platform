@@ -38,13 +38,13 @@
 
     <!-- 班级表格 -->
     <div style="overflow-x:auto;width:100%">
-    <el-table :data="scoreData" border stripe v-if="mode==='class' && scoreData.length" v-loading="loading">
+    <el-table :data="scoreData" border stripe v-if="mode==='class' && scoreData.length" v-loading="loading" size="small">
       <el-table-column prop="student_no" label="学籍号" width="130" fixed />
       <el-table-column prop="student_name" label="姓名" width="90" fixed />
-      <el-table-column v-for="sn in visibleSubjs" :key="sn" :label="sn" width="72">
+      <el-table-column v-for="sn in visibleSubjs" :key="sn" :label="sn" width="65">
         <template #default="{row}">{{ row.subjects[sn] }}</template>
       </el-table-column>
-      <el-table-column prop="total" label="总分" width="80" />
+      <el-table-column prop="total" label="总分" width="70" />
       <el-table-column prop="class_rank" label="班排" width="65">
         <template #default="{row}"><span :class="rankClass(row.class_rank)">{{ row.class_rank }}</span></template>
       </el-table-column>
@@ -70,21 +70,21 @@
         </template>
       </el-alert>
       <div style="overflow-x:auto;width:100%">
-      <el-table :data="scoreData" border stripe>
-        <el-table-column prop="exam_name" label="考试" width="220" fixed />
-        <el-table-column prop="exam_date" label="日期" width="120" />
-        <el-table-column v-for="sn in visibleSubjs" :key="sn" :label="sn" width="72">
+      <el-table :data="scoreData" border stripe size="small">
+        <el-table-column prop="exam_name" label="考试" width="180" fixed />
+        <el-table-column prop="exam_date" label="日期" width="100" />
+        <el-table-column v-for="sn in visibleSubjs" :key="sn" :label="sn" width="65">
           <template #default="{row}">{{ row.subjects[sn] }}</template>
         </el-table-column>
-        <el-table-column prop="total" label="总分" width="80" />
+        <el-table-column prop="total" label="总分" width="70" />
         <el-table-column prop="class_rank" label="班排" width="65">
           <template #default="{row}"><span :class="rankClass(row.class_rank)">{{ row.class_rank }}</span></template>
         </el-table-column>
         <el-table-column prop="grade_rank" label="级排" width="65">
           <template #default="{row}"><span :class="rankClass(row.grade_rank)">{{ row.grade_rank }}</span></template>
         </el-table-column>
-        <el-table-column prop="yuwai_total" label="语数外总分" width="100" />
-        <el-table-column prop="yuwai_rank" label="语数外排名" width="100">
+        <el-table-column prop="yuwai_total" label="语数外总分" width="95" />
+        <el-table-column prop="yuwai_rank" label="语数外排名" width="95">
           <template #default="{row}"><span :class="rankClass(row.yuwai_rank)">{{ row.yuwai_rank }}</span></template>
         </el-table-column>
         <el-table-column prop="top3_total" label="7选3总分" width="95" />
@@ -125,23 +125,23 @@
     </el-form>
 
     <div style="overflow-x:auto;width:100%">
-    <el-table :data="gradeData" border stripe v-if="mode==='grade' && gradeData.length" v-loading="loading">
-      <el-table-column prop="rank" label="级排" width="65" fixed>
+    <el-table :data="gradeData" border stripe v-if="mode==='grade' && gradeData.length" v-loading="loading" size="small">
+      <el-table-column prop="rank" label="级排" width="65" fixed sortable>
         <template #default="{row}"><span :class="rankClass(row.rank)">{{ row.rank }}</span></template>
       </el-table-column>
       <el-table-column prop="student_no" label="学籍号" width="130" fixed />
       <el-table-column prop="student_name" label="姓名" width="100" fixed />
-      <el-table-column prop="class_name" label="班级" width="130" fixed />
-      <el-table-column v-for="sn in gradeSubjs" :key="sn" :label="sn" width="72">
+      <el-table-column prop="class_name" label="班级" width="80" fixed />
+      <el-table-column v-for="sn in gradeSubjs" :key="sn" :label="sn" width="60">
         <template #default="{row}">{{ row.subjects?.[sn] }}</template>
       </el-table-column>
-      <el-table-column prop="total_score" label="总分" width="90" />
+      <el-table-column prop="total_score" label="总分" width="80" />
       <el-table-column prop="yuwai_total" label="语数外总分" width="100" />
-      <el-table-column prop="yuwai_rank" label="语数外排名" width="100">
+      <el-table-column prop="yuwai_rank" label="语数外排名" width="100" sortable>
         <template #default="{row}"><span :class="rankClass(row.yuwai_rank)">{{ row.yuwai_rank }}</span></template>
       </el-table-column>
       <el-table-column prop="top3_total" label="7选3总分" width="95" />
-      <el-table-column prop="top3_rank" label="7选3排名" width="95">
+      <el-table-column prop="top3_rank" label="7选3排名" width="95" sortable>
         <template #default="{row}"><span :class="rankClass(row.top3_rank)">{{ row.top3_rank }}</span></template>
       </el-table-column>
     </el-table>

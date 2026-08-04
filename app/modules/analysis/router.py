@@ -511,3 +511,177 @@ async def class_subject_compare(
         "special_counts": special_counts,
         "subjects": subject_data,
     })
+
+
+@router.get("/class-avg-compare")
+async def class_avg_compare(
+    enrollment_year: int,
+    exam_ids: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_role("admin", "director", "teacher")),
+):
+    """班级均分对比分析"""
+    import math
+    from sqlalchemy import text
+
+    ids = [int(x.strip()) for x in exam_ids.split(",") if x.strip()]
+    if len(ids) < 2:
+        raise ValidationException("至少选择2次考试")
+
+    ids_str = ",".join(str(i) for i in ids)
+
+    # 获取考试列表（按日期排序，最近的在前）
+    result = await db.execute(text(
+        f"SELECT id, name FROM exams WHERE id IN ({ids_str}) ORDER BY exam_date DESC"
+    ))
+    exams = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
+    if len(exams) < 2:
+        raise ValidationException("选中的有效考试不足2次")
+
+    latest_exam = exams[0]
+    other_exams = exams[1:]
+
+    # 获取班级列表（基于最近考试有学生参与的班级）
+    result = await db.execute(text(
+        """SELECT DISTINCT c.id, c.name FROM classes c
+            JOIN students s ON s.class_id = c.id
+            JOIN rank_snapshots rs ON rs.student_id = s.id
+            WHERE s.enrollment_year = :yr
+              AND rs.exam_id = :latest_id
+              AND rs.rank_type = 'total'
+            ORDER BY c.id"""
+    ), {"yr": enrollment_year, "latest_id": latest_exam["id"]})
+    classes = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
+
+    # 获取最近考试的特控线
+    result = await db.execute(text(
+        "SELECT cutoff_type, score FROM score_cutoffs WHERE exam_id = :eid"
+    ), {"eid": latest_exam["id"]})
+    cutoffs = {r[0]: float(r[1]) for r in result.fetchall()}
+    special_score = cutoffs.get("special")
+    if not special_score:
+        raise ValidationException("最近的考试未设置特控线")
+
+    # 获取所有学科
+    result = await db.execute(text("SELECT id, name FROM subjects ORDER BY sort_order"))
+    subjects = [{"id": r[0], "name": r[1]} for r in result.fetchall()]
+
+    # === 第一行：最近考试特控线及以上人数 ===
+    special_counts: dict[int, int] = {}
+    result = await db.execute(text(
+        """SELECT s.class_id, COUNT(*)
+           FROM rank_snapshots rs
+           JOIN students s ON rs.student_id = s.id
+           WHERE rs.exam_id = :eid AND rs.rank_type = 'total'
+             AND s.enrollment_year = :yr
+             AND rs.total_score >= :sc
+           GROUP BY s.class_id"""
+    ), {"eid": latest_exam["id"], "yr": enrollment_year, "sc": special_score})
+    for row in result.fetchall():
+        special_counts[row[0]] = row[1]
+
+    # === 各学科数据 ===
+    subject_data = []
+    for subj in subjects:
+        subj_id = subj["id"]
+        subj_name = subj["name"]
+
+        entry = {
+            "subject_id": subj_id,
+            "subject_name": subj_name,
+            "exam_takers": {},       # class_id -> count (最近考试)
+            "avg_80": {},            # class_id -> avg (最近考试前80%平均分)
+            "other_exam_avgs": [],   # [{exam_name, data: {class_id: avg}}]
+        }
+
+        # 最近考试：考试人数 + 前80%平均分
+        result = await db.execute(text(
+            """SELECT sc.student_id, s.class_id, sc.total_score
+               FROM scores sc
+               JOIN students s ON sc.student_id = s.id
+               WHERE sc.exam_id = :eid AND sc.subject_id = :sid
+                 AND s.enrollment_year = :yr"""
+        ), {"eid": latest_exam["id"], "sid": subj_id, "yr": enrollment_year})
+        rows = result.fetchall()
+
+        # 按班级分组
+        class_scores: dict[int, list] = {}
+        for row in rows:
+            class_id = row[1]
+            score = float(row[2])
+            if class_id not in class_scores:
+                class_scores[class_id] = []
+            class_scores[class_id].append(score)
+
+        takers: dict[int, int] = {}
+        avg_80: dict[int, float] = {}
+        for cid, scores_list in class_scores.items():
+            takers[cid] = len(scores_list)
+            # 前80%：按分数降序排列，取前80%
+            sorted_scores = sorted(scores_list, reverse=True)
+            top_count = max(1, math.ceil(len(sorted_scores) * 0.8))
+            top_scores = sorted_scores[:top_count]
+            avg_80[cid] = round(sum(top_scores) / len(top_scores), 1)
+
+        # 全校前80%平均分
+        all_scores = [s for scores_list in class_scores.values() for s in scores_list]
+        if all_scores:
+            sorted_all = sorted(all_scores, reverse=True)
+            top_count_all = max(1, math.ceil(len(sorted_all) * 0.8))
+            top_all = sorted_all[:top_count_all]
+            entry["avg_80_school"] = round(sum(top_all) / len(top_all), 1)
+        else:
+            entry["avg_80_school"] = None
+
+        entry["exam_takers"] = takers
+        entry["avg_80"] = avg_80
+
+        # 其他考试：前80%平均分
+        for oe in other_exams:
+            oe_id = oe["id"]
+            result = await db.execute(text(
+                """SELECT sc.student_id, s.class_id, sc.total_score
+                   FROM scores sc
+                   JOIN students s ON sc.student_id = s.id
+                   WHERE sc.exam_id = :eid AND sc.subject_id = :sid
+                     AND s.enrollment_year = :yr"""
+            ), {"eid": oe_id, "sid": subj_id, "yr": enrollment_year})
+            oe_rows = result.fetchall()
+
+            oe_class_scores: dict[int, list] = {}
+            for row in oe_rows:
+                class_id = row[1]
+                score = float(row[2])
+                if class_id not in oe_class_scores:
+                    oe_class_scores[class_id] = []
+                oe_class_scores[class_id].append(score)
+
+            oe_data = {"exam_id": oe_id, "exam_name": oe["name"], "data": {}}
+            for cid, scores_list in oe_class_scores.items():
+                sorted_scores = sorted(scores_list, reverse=True)
+                top_count = max(1, math.ceil(len(sorted_scores) * 0.8))
+                top_scores = sorted_scores[:top_count]
+                oe_data["data"][cid] = round(sum(top_scores) / len(top_scores), 1)
+
+            # 全校前80%平均分
+            oe_all_scores = [s for scores_list in oe_class_scores.values() for s in scores_list]
+            if oe_all_scores:
+                sorted_oe_all = sorted(oe_all_scores, reverse=True)
+                top_count_oe = max(1, math.ceil(len(sorted_oe_all) * 0.8))
+                top_oe_all = sorted_oe_all[:top_count_oe]
+                oe_data["school_avg"] = round(sum(top_oe_all) / len(top_oe_all), 1)
+            else:
+                oe_data["school_avg"] = None
+
+            entry["other_exam_avgs"].append(oe_data)
+
+        subject_data.append(entry)
+
+    return success_response(data={
+        "latest_exam": latest_exam,
+        "other_exams": other_exams,
+        "special_score": special_score,
+        "classes": classes,
+        "special_counts": special_counts,
+        "subjects": subject_data,
+    })

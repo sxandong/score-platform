@@ -124,6 +124,12 @@ const router = createRouter({
           meta: { title: '班级学科对比', roles: ['admin', 'director', 'teacher'] },
         },
         {
+          path: 'analysis/class-avg-compare',
+          name: 'class-avg-compare',
+          component: () => import('@/views/analysis/ClassAvgCompare.vue'),
+          meta: { title: '班级均分对比', roles: ['admin', 'director', 'teacher'] },
+        },
+        {
           path: 'reports',
           name: 'reports',
           component: () => import('@/views/reports/ReportExport.vue'),

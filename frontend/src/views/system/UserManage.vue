@@ -30,7 +30,7 @@
       </el-button>
     </div>
 
-    <el-table :data="users" border stripe v-loading="loading" @selection-change="handleSelectionChange">
+    <el-table :data="users" border stripe v-loading="loading" @selection-change="handleSelectionChange" size="small">
       <el-table-column type="selection" width="45" />
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="username" label="用户名" />

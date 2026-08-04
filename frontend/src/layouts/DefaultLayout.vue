@@ -40,6 +40,7 @@
           <el-menu-item index="/analysis/student-rank-stats">学生排名统计</el-menu-item>
           <el-menu-item index="/analysis/student-trend">学校三线趋势</el-menu-item>
           <el-menu-item index="/analysis/class-subject-compare">班级学科对比</el-menu-item>
+          <el-menu-item index="/analysis/class-avg-compare">班级均分对比</el-menu-item>
         </el-sub-menu>
         <el-menu-item v-if="auth.hasPermission('report:export')" index="/reports">
           <el-icon><Download /></el-icon><span>报表导出</span>

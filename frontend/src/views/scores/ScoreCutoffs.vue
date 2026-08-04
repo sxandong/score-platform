@@ -6,6 +6,22 @@
       <el-form-item label="考试"><el-select v-model="examId" placeholder="选择考试" style="width:300px" @change="loadData">
         <el-option v-for="e in exams" :key="e.id" :label="e.name" :value="e.id" /></el-select>
       </el-form-item>
+      <el-form-item v-if="examId && !isReadOnly">
+        <el-button type="success" @click="downloadTemplate">
+          <el-icon><Download /></el-icon> 下载导入模板
+        </el-button>
+        <el-upload
+          :show-file-list="false"
+          :before-upload="beforeImport"
+          :http-request="doImport"
+          accept=".xlsx,.xls"
+          style="margin-left:8px"
+        >
+          <el-button type="warning">
+            <el-icon><Upload /></el-icon> 导入Excel
+          </el-button>
+        </el-upload>
+      </el-form-item>
     </el-form>
 
     <el-card v-if="examId" v-loading="loading">
@@ -53,11 +69,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Download, Upload } from '@element-plus/icons-vue'
+import axios from 'axios'
 
 const auth = useAuthStore()
 const isReadOnly = computed(() => auth.hasRole('teacher') && !auth.hasRole('admin') && !auth.hasRole('director'))
-const exams = ref([]); const examId = ref<number | null>(null); const examName = ref('')
+const exams = ref<any[]>([]); const examId = ref<number | null>(null); const examName = ref('')
 const loading = ref(false); const saving = ref(false)
 const examCutoffs = ref<any[]>([])
 const subjCutoffs = ref<any[]>([])
@@ -97,5 +115,83 @@ async function saveCutoffs() {
     ElMessage.success('分数线保存成功')
   } catch (e: any) { ElMessage.error(e.message) }
   saving.value = false
+}
+
+async function downloadTemplate() {
+  if (!examId.value) { ElMessage.warning('请先选择考试'); return }
+  try {
+    const token = localStorage.getItem('access_token')
+    const resp = await axios.get('/api/exams/cutoffs/template', {
+      params: { exam_id: examId.value },
+      headers: { Authorization: `Bearer ${token}` },
+      responseType: 'blob',
+    })
+    const url = URL.createObjectURL(new Blob([resp.data]))
+    const a = document.createElement('a')
+    a.href = url
+    const contentDisposition = resp.headers['content-disposition']
+    let fileName = '分数线模板.xlsx'
+    if (contentDisposition) {
+      // 优先使用 filename*=UTF-8''... 格式（支持中文）
+      const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+      if (utf8Match) {
+        fileName = decodeURIComponent(utf8Match[1])
+      } else {
+        const asciiMatch = contentDisposition.match(/filename="?([^";]+)"?/i)
+        if (asciiMatch) fileName = asciiMatch[1]
+      }
+    }
+    a.download = fileName
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e: any) {
+    ElMessage.error('下载模板失败')
+  }
+}
+
+function beforeImport(file: File): boolean {
+  if (!examId.value) { ElMessage.warning('请先选择考试'); return false }
+  if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+    ElMessage.error('请上传Excel文件(.xlsx或.xls)')
+    return false
+  }
+  return true
+}
+
+async function doImport(options: any) {
+  if (!examId.value) return
+  const formData = new FormData()
+  formData.append('exam_id', String(examId.value))
+  formData.append('file', options.file)
+
+  try {
+    // 检查是否已有分数线
+    const r = await api.get(`/exams/${examId.value}/cutoffs`)
+    const existing = (r.data?.cutoffs || []).filter((c: any) => c.score != null && c.score !== undefined)
+    const hasExisting = existing.length > 0
+
+    if (hasExisting) {
+      await ElMessageBox.confirm(
+        `该考试已设置 ${existing.length} 项分数线数据，导入将覆盖原有数据，是否继续？`,
+        '确认覆盖',
+        { confirmButtonText: '确定导入', cancelButtonText: '取消', type: 'warning' }
+      )
+    }
+
+    const token = localStorage.getItem('access_token')
+    const resp = await axios.post('/api/exams/cutoffs/import', formData, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+    })
+    if (resp.data?.code === 200) {
+      ElMessage.success(resp.data.message || '导入成功')
+      loadData()
+    } else {
+      ElMessage.error(resp.data?.message || '导入失败')
+    }
+  } catch (e: any) {
+    if (e !== 'cancel' && e?.name !== 'Cancel') {
+      ElMessage.error(e?.response?.data?.message || e.message || '导入失败')
+    }
+  }
 }
 </script>
