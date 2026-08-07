@@ -580,6 +580,30 @@ async def class_avg_compare(
     for row in result.fetchall():
         special_counts[row[0]] = row[1]
 
+    # === 总分平均分（最近考试，按班级） ===
+    class_total_avgs: dict[int, float] = {}
+    result = await db.execute(text(
+        """SELECT s.class_id, AVG(rs.total_score)
+           FROM rank_snapshots rs
+           JOIN students s ON rs.student_id = s.id
+           WHERE rs.exam_id = :eid AND rs.rank_type = 'total'
+             AND s.enrollment_year = :yr
+           GROUP BY s.class_id"""
+    ), {"eid": latest_exam["id"], "yr": enrollment_year})
+    for row in result.fetchall():
+        class_total_avgs[row[0]] = round(float(row[1]), 1)
+
+    # 全校总分平均分
+    result = await db.execute(text(
+        """SELECT AVG(rs.total_score)
+           FROM rank_snapshots rs
+           JOIN students s ON rs.student_id = s.id
+           WHERE rs.exam_id = :eid AND rs.rank_type = 'total'
+             AND s.enrollment_year = :yr"""
+    ), {"eid": latest_exam["id"], "yr": enrollment_year})
+    sta_row = result.fetchone()
+    school_total_avg = round(float(sta_row[0]), 1) if sta_row and sta_row[0] else None
+
     # === 各学科数据 ===
     subject_data = []
     for subj in subjects:
@@ -683,5 +707,7 @@ async def class_avg_compare(
         "special_score": special_score,
         "classes": classes,
         "special_counts": special_counts,
+        "class_total_avgs": class_total_avgs,
+        "school_total_avg": school_total_avg,
         "subjects": subject_data,
     })

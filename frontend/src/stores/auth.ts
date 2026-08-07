@@ -33,6 +33,26 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
+  async function dingtalkLogin(authCode: string): Promise<LoginResponse> {
+    const res = await api.post<unknown, ApiResponse<LoginResponse>>(
+      '/auth/dingtalk/callback',
+      { auth_code: authCode },
+      { skipAuthRedirect: true }
+    )
+    const data = res.data
+    token.value = data.access_token
+    refreshToken.value = data.refresh_token
+    user.value = data.user
+    permissions.value = data.user.permissions || []
+    roles.value = data.user.roles || []
+    isLoggedIn.value = true
+
+    localStorage.setItem('access_token', data.access_token)
+    localStorage.setItem('refresh_token', data.refresh_token)
+
+    return data
+  }
+
   async function fetchUser(): Promise<void> {
     if (!token.value) return
     try {
@@ -72,8 +92,13 @@ export const useAuthStore = defineStore('auth', () => {
     return permissions.value.includes(perm)
   }
 
+  async function api_get<T = any>(url: string): Promise<T> {
+    const res = await api.get<unknown, ApiResponse<T>>(url, { skipAuthRedirect: true })
+    return res.data
+  }
+
   return {
     user, token, refreshToken, permissions, roles, isLoggedIn, mustChangePassword,
-    login, fetchUser, changePassword, logout, hasRole, hasPermission,
+    login, dingtalkLogin, fetchUser, changePassword, logout, hasRole, hasPermission, api_get,
   }
 })

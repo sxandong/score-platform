@@ -85,7 +85,7 @@
       </div>
 
       <div class="footer-info">
-        <span>说明：<b>考试人数</b>=参加该学科考试人数；<b>80%平均分</b>=单科排名前80%学生的平均分（去掉后20%）</span>
+        <span>说明：<b>考试人数</b>=参加该学科考试人数；<b>80%平均分</b>=单科排名前80%学生的平均分（去掉后20%）；<b>总分平均分</b>=各班级全体学生总分平均分，合计列为全校总分平均分</span>
       </div>
     </el-card>
     <el-empty v-else-if="!loading" description="请选择入学年份和至少2次考试后生成统计" />
@@ -125,6 +125,17 @@ const tableRows = computed(() => {
   })
   specialRow._total = specialTotal || null
   rows.push(specialRow)
+
+  // 总分平均分行（最近考试）
+  const totalAvgRow: any = {
+    _rowType: 'total-avg', _subjectIndex: -1, _subjectSpan: 1,
+    _subjectName: '总分平均分', _examLabel: d.latest_exam.name
+  }
+  classIds.forEach((cid: string) => {
+    totalAvgRow['c_' + cid] = d.class_total_avgs?.[cid] ?? null
+  })
+  totalAvgRow._total = d.school_total_avg ?? null
+  rows.push(totalAvgRow)
 
   // 各学科
   d.subjects.forEach((subj: any, sIdx: number) => {
@@ -185,11 +196,13 @@ function spanMethod({ row, column, rowIndex, columnIndex }: any) {
 
 function getCellClass(rowType: string) {
   if (rowType === 'special') return 'cell-special'
+  if (rowType === 'total-avg') return 'cell-total-avg'
   return ''
 }
 
 function rowClassName({ row }: any) {
   if (row._rowType === 'special') return 'row-special'
+  if (row._rowType === 'total-avg') return 'row-total-avg'
   return `row-subj-${row._subjectIndex % 5}`
 }
 
@@ -277,12 +290,17 @@ async function loadData() {
 /* 特控线行 */
 .cell-special {
   display: inline-block; min-width: 32px; padding: 3px 8px; border-radius: 18px;
-  background: #ffcc00; color: #fff; font-weight: 600; font-size: 13px;
+  background: #ffcc00; color: #fff; font-weight: 600; font-size: 12px;
+}
+
+/* 总分平均分行 */
+.cell-total-avg {
+  font-weight: 700; color: #1a5490; font-size: 12px;
 }
 
 /* 合计列 */
 .cell-total {
-  font-weight: 700; color: #1a5490; font-size: 13px;
+  font-weight: 700; color: #1a7c90; font-size: 12px;
 }
 
 .compare-table :deep(.el-table__cell) { background: #fff; }
@@ -290,6 +308,11 @@ async function loadData() {
 /* 特控线行 */
 .compare-table :deep(.row-special td) {
   background: #fff3cd !important;
+}
+
+/* 总分平均分行 */
+.compare-table :deep(.row-total-avg td) {
+  background: #e8f4f8 !important;
 }
 
 /* 各学科交替背景色 */
@@ -306,7 +329,7 @@ async function loadData() {
   background: #f9f0ff !important;
 }
 .compare-table :deep(.row-subj-4 td) {
-  background: #f0ffff !important;
+  background: #f0feff !important;
 }
 
 .compare-table :deep(.el-table__body tr:hover > td) {

@@ -29,6 +29,7 @@ class User(Base):
     avatar_url = Column(String(500), default="")
     status = Column(String(10), default="active")
     must_change_password = Column(Boolean, default=False)
+    dingtalk_union_id = Column(String(100), default="", index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 

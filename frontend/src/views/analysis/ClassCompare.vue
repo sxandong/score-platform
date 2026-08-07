@@ -60,7 +60,7 @@
         <el-table-column prop="label" label="科目" width="80" fixed/>
         <el-table-column prop="total" label="总人数" width="75" fixed/>
         <el-table-column v-for="c in compareData" :key="c.id" :label="c.name" width="100">
-          <template #default="{row}">
+          <template #default="{row}" class-name="subject-name">
             <span v-if="row[c.id]?.count !== 0" :class="numClass(row[c.id]?.count||0,'')">{{ row[c.id]?.count || 0 }}</span>
           </template>
         </el-table-column>
@@ -176,20 +176,28 @@ async function recalcRanks() {
 
 function numClass(v: number, label: string): string {
   if (!v) return ''
-  const isKey = /930|特控/.test(label)
-  if (isKey && v > 0) return 'count-red'
-  if (v >= 15) return 'count-high'
-  if (v >= 5) return 'count-mid'
-  return 'count-low'
+  // 优秀/良好表(空label) 用灰色
+  if (!label) return 'count-gray'
+  if (/930|特控/.test(label)) return 'count-red'
+  if (/一段线/.test(label)) return 'count-gray'
+  if (/前20名/.test(label)) return 'count-orange'
+  if (/前30名/.test(label)) return 'count-yellow'
+  if (/前50名/.test(label)) return 'count-green'
+  if (/前80名/.test(label)) return 'count-teal'
+  if (/前100名/.test(label)) return 'count-blue'
+  return 'count-gray'
 }
 </script>
 
 <style scoped>
 .scroll-wrap { overflow-x:auto; width:100%; }
-.cutoff-hint { font-size:12px; color:var(--tx-secondary); margin-left:8px; white-space:nowrap; }
+.cutoff-hint { font-size:12px; color:#0aa344; margin-left:8px; white-space:nowrap; }
 :deep(.el-table th.el-table__cell) { background: linear-gradient(180deg,#f0f5fa,#e8f0fe); color:var(--edu-blue); font-weight:600; text-align:center; }
-.count-high { color:var(--edu-green); font-weight:700; }
-.count-mid { color:var(--edu-gold); font-weight:600; }
-.count-low { color:var(--tx-secondary); }
-.count-red { color:#e04040; font-weight:700; }
+.count-red { color:#ff2121; font-weight:700; }
+.count-orange { color:#ff4c00; font-weight:700; }
+.count-yellow { color:#ffcc00; font-weight:700; }
+.count-green { color:#0aa344; font-weight:700; }
+.count-teal { color:#3de1ad; font-weight:700; }
+.count-blue { color:#4B5CC4; font-weight:700; }
+.count-gray { color:#666666; font-weight:500; }
 </style>

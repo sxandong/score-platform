@@ -127,9 +127,10 @@ function numClass(v: number, typeName?: string): string {
   if (!v) return ''
   if (typeName === '930线') return 'count-red'
   if (typeName === '特控线') return 'count-orange'
+  if (typeName === '一段线') return 'count-green'
   if (v >= 15) return 'count-high'
   if (v >= 5) return 'count-mid'
-  return 'count-low'
+  return 'count-yellow'
 }
 </script>
 
@@ -141,4 +142,15 @@ function numClass(v: number, typeName?: string): string {
 .count-low { color:var(--tx-secondary); }
 .count-red { color:#e04040; font-weight:700; }
 .count-orange { color:#e6a23c; font-weight:700; }
+.count-yellow { color:#f99c02; font-weight:700; }
+.count-green { color:#0aa344; font-weight:700; }
+.count-teal { color:#3de1ad; font-weight:700; }
+.count-blue { color:#4B5CC4; font-weight:700; }
+.count-gray { color:#999999; }
+
+.subject-name {
+  font-weight: 700;
+  color: var(--edu-blue);
+  font-size: 12px;
+}
 </style>

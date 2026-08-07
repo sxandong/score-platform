@@ -24,12 +24,44 @@ if not logger.handlers:
     logger.setLevel(logging.DEBUG if settings.DEBUG else logging.INFO)
 
 
+async def auto_migrate():
+    """自动迁移：检查并添加新字段"""
+    from sqlalchemy import text, inspect as sa_inspect
+    try:
+        async with engine.begin() as conn:
+            # 检查 users 表是否有 dingtalk_union_id 字段
+            if settings.DATABASE_IS_SQLITE:
+                result = await conn.execute(text("PRAGMA table_info(users)"))
+                columns = {row[1] for row in result.fetchall()}
+            else:
+                result = await conn.execute(text("SHOW COLUMNS FROM users"))
+                columns = {row[0] for row in result.fetchall()}
+
+            if "dingtalk_union_id" not in columns:
+                logger.info("Migrating: adding dingtalk_union_id column to users table")
+                if settings.DATABASE_IS_SQLITE:
+                    await conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN dingtalk_union_id VARCHAR(100) DEFAULT ''"
+                    ))
+                else:
+                    await conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN dingtalk_union_id VARCHAR(100) DEFAULT ''"
+                    ))
+                logger.info("Migration: dingtalk_union_id column added successfully")
+    except Exception as e:
+        logger.warning(f"Auto migration failed (may be safe to ignore): {e}")
+
+
 async def init_database():
     """确保数据库表和数据在应用启动前就绪"""
     logger.info("Initializing database...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Tables created.")
+
+    # 自动迁移：检查并添加新字段
+    await auto_migrate()
+
     async with async_session_factory() as db:
         await run_all_seeds(db)
     logger.info("Seed data loaded.")

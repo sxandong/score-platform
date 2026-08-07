@@ -57,6 +57,12 @@ class Settings(BaseSettings):
 
     RATE_LIMIT_LOGIN: str = "5/minute"
 
+    # DingTalk 钉钉扫码登录
+    DINGTALK_APP_KEY: str = ""
+    DINGTALK_APP_SECRET: str = ""
+    DINGTALK_AGENT_ID: str = ""
+    DINGTALK_CORP_ID: str = ""  # 本单位企业ID，用于限制只有本单位用户可登录
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

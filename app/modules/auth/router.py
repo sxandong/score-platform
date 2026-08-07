@@ -7,8 +7,10 @@ from app.dependencies import get_db
 from app.core.security import get_current_user
 from app.core.response import success_response
 from app.core.rate_limit import limiter
+from app.core.exceptions import ValidationException
 from app.modules.auth.schemas import LoginRequest, RefreshRequest, ChangePasswordRequest
 from app.modules.auth.service import login_service, refresh_token_service
+from app.modules.auth.dingtalk import dingtalk_login
 from app.modules.users.service import change_password_service
 from app.models.user import User
 
@@ -52,3 +54,27 @@ async def change_password(
 ):
     await change_password_service(db, current_user.id, req.old_password, req.new_password)
     return success_response(message="密码修改成功")
+
+
+@router.get("/dingtalk/config")
+async def dingtalk_config():
+    """钉钉登录配置（前端获取AppKey等）"""
+    return success_response(data={
+        "app_key": settings.DINGTALK_APP_KEY or "",
+        "agent_id": settings.DINGTALK_AGENT_ID or "",
+        "enabled": bool(settings.DINGTALK_APP_KEY and settings.DINGTALK_APP_SECRET),
+    })
+
+
+@router.post("/dingtalk/callback")
+async def dingtalk_callback(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """钉钉扫码登录回调"""
+    body = await request.json()
+    auth_code = body.get("auth_code") or body.get("code")
+    if not auth_code:
+        raise ValidationException("缺少auth_code参数")
+    result = await dingtalk_login(db, auth_code)
+    return success_response(data=result, message="钉钉登录成功")

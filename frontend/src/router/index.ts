@@ -11,6 +11,12 @@ const router = createRouter({
       meta: { public: true },
     },
     {
+      path: '/dingtalk/callback',
+      name: 'dingtalk-callback',
+      component: () => import('@/views/DingtalkCallback.vue'),
+      meta: { public: true },
+    },
+    {
       path: '/change-password',
       name: 'change-password',
       component: () => import('@/views/ChangePassword.vue'),

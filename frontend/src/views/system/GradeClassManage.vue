@@ -10,7 +10,7 @@
             批量删除 ({{ gSelected.length }})
           </el-button>
         </div>
-        <el-table :data="grades" border stripe v-loading="gLoading" @selection-change="(v:any)=>gSelected=v">
+        <el-table :data="grades" border size="small" stripe v-loading="gLoading" @selection-change="(v:any)=>gSelected=v">
           <el-table-column type="selection" width="40" />
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column prop="name" label="年级名称" />
@@ -61,7 +61,7 @@
           <el-button text @click="selectAllClasses">{{ cSelected.length === filteredClasses.length && filteredClasses.length > 0 ? '取消全选' : '全选当前' }}</el-button>
         </div>
 
-        <el-table ref="classTableRef" :data="classes" border stripe v-loading="cLoading" @selection-change="(v:any)=>cSelected=v">
+        <el-table ref="classTableRef" :data="classes" border size="small" stripe v-loading="cLoading" @selection-change="(v:any)=>cSelected=v">
           <el-table-column type="selection" width="40" />
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column prop="name" label="班级名称" />
